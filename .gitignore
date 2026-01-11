@@ -1,0 +1,53 @@
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### Environment Variables ###
+.env
+.env.local
+.env.*.local
+
+
+ADMIN_PLAYERSTAT_API.md
+DEPLOYMENT_CHECKLIST.md
+SECURITY_FIX.md
+DIARY_ARCHITECTURE.md
+FRESH_START.md
+REMOVE_SENSITIVE_DATA.md
+SIMPLE_FIX.md
+SECURITY_FIX.md
+URGENT_SECURITY_ACTION.md
