@@ -33,6 +33,10 @@ spring:
             user-info-uri: https://www.googleapis.com/oauth2/v2/userinfo
             user-name-attribute: id
 
+# 서버 포트 설정 (CloudType은 PORT 환경 변수 제공)
+server:
+  port: ${PORT:8080} # CloudType의 PORT 환경 변수 사용, 없으면 8080
+
 # JWT 설정
 jwt:
   secret: ${JWT_SECRET:your-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm}
