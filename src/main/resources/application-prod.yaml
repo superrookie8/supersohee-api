@@ -17,5 +17,5 @@ cloudflare:
 
 # 어드민 설정 (프로덕션 - 환경 변수 필수)
 admin:
-  username: ${ADMIN_USERNAME:admin} # 기본값 추가 (프로덕션에서는 환경 변수로 설정 권장)
+  username: ${ADMIN_USERNAME:admin} # 기본값: admin (프로덕션에서는 환경 변수로 설정 권장)
   password: ${ADMIN_PASSWORD} # 환경 변수 필수 (기본값 없음)
