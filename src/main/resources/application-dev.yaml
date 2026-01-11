@@ -1,0 +1,24 @@
+# 개발 환경 설정
+# 사용법: --spring.profiles.active=dev 또는 SPRING_PROFILES_ACTIVE=dev
+# 주의: .env 파일에 ADMIN_PASSWORD를 반드시 설정하세요!
+
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+# Cloudflare R2 설정 (개발용 - 빈 값 허용, 이미지 업로드 기능 사용 안 함)
+cloudflare:
+  r2:
+    endpoint: ${R2_ENDPOINT:} # 개발 환경에서는 빈 값 허용 (이미지 업로드 미사용 시)
+    access-key-id: ${R2_ACCESS_KEY_ID:}
+    secret-access-key: ${R2_SECRET_ACCESS_KEY:}
+    bucket-name: ${R2_BUCKET_NAME:supersohee-images-all}
+    presigned-url-expiration: ${R2_PRESIGNED_URL_EXPIRATION:604800}
+
+# 어드민 설정 (개발용 - .env 파일 필수!)
+# ⚠️ 보안: .env 파일에 ADMIN_PASSWORD를 반드시 설정하세요!
+# 기본값을 사용하면 보안 위험이 있습니다.
+admin:
+  username: ${ADMIN_USERNAME:admin}
+  password: ${ADMIN_PASSWORD} # 환경 변수 필수 (기본값 없음 - 보안상 안전)
