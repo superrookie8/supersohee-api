@@ -8,14 +8,17 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @Configuration
-public class JacksonConfig {
+public class JacksonConfig implements WebMvcConfigurer {
 
     private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
 
@@ -43,7 +46,7 @@ public class JacksonConfig {
                 String text = p.getText();
                 try {
                     // ISO 8601 형식 (타임존 포함) 파싱 시도
-                    if (text.contains("+") || text.contains("Z") || text.contains("-") && text.matches(".*\\d{2}:\\d{2}$")) {
+                    if (text.contains("+") || text.contains("Z") || (text.contains("-") && text.matches(".*\\d{2}:\\d{2}$"))) {
                         ZonedDateTime zonedDateTime = ZonedDateTime.parse(text, DateTimeFormatter.ISO_OFFSET_DATE_TIME);
                         return zonedDateTime.withZoneSameInstant(SEOUL_ZONE).toLocalDateTime();
                     }
@@ -60,5 +63,30 @@ public class JacksonConfig {
                 .featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
                 .timeZone(java.util.TimeZone.getTimeZone(SEOUL_ZONE))
                 .build();
+    }
+
+    // HTTP 메시지 컨버터에 ObjectMapper 강제 적용
+    @Override
+    public void extendMessageConverters(List<org.springframework.http.converter.HttpMessageConverter<?>> converters) {
+        for (org.springframework.http.converter.HttpMessageConverter<?> converter : converters) {
+            if (converter instanceof MappingJackson2HttpMessageConverter) {
+                MappingJackson2HttpMessageConverter jsonConverter = (MappingJackson2HttpMessageConverter) converter;
+                // 기존 ObjectMapper를 가져와서 설정 적용
+                ObjectMapper mapper = jsonConverter.getObjectMapper();
+                if (mapper != null) {
+                    JavaTimeModule javaTimeModule = new JavaTimeModule();
+                    javaTimeModule.addSerializer(LocalDateTime.class, new com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer(DateTimeFormatter.ISO_LOCAL_DATE_TIME) {
+                        @Override
+                        public void serialize(LocalDateTime value, com.fasterxml.jackson.core.JsonGenerator gen, com.fasterxml.jackson.databind.SerializerProvider provider) throws java.io.IOException {
+                            ZonedDateTime zonedDateTime = value.atZone(SEOUL_ZONE);
+                            gen.writeString(zonedDateTime.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+                        }
+                    });
+                    mapper.registerModule(javaTimeModule);
+                    mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                    mapper.setTimeZone(java.util.TimeZone.getTimeZone(SEOUL_ZONE));
+                }
+            }
+        }
     }
 }
