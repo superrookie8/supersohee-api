@@ -3,10 +3,17 @@ package com.supersohee.api.diary.service;
 import com.supersohee.api.diary.domain.Diary;
 import com.supersohee.api.diary.dto.DiaryRequest;
 import com.supersohee.api.diary.repository.DiaryRepository;
+import com.supersohee.api.schedule.repository.ScheduleRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -16,15 +23,31 @@ import java.util.stream.Collectors;
 public class DiaryService {
 
     private final DiaryRepository diaryRepository;
+    private final ScheduleRepository scheduleRepository;
 
     // 직관일지 작성
     @Transactional
     public Diary createDiary(String userId, DiaryRequest request) {
-        // gameId가 있으면 같은 경기에 대한 일지가 이미 있는지 확인
-        if (request.getGameId() != null && !request.getGameId().isEmpty()) {
-            Optional<Diary> existingDiary = diaryRepository.findByUserIdAndGameId(userId, request.getGameId());
+        String finalGameId = request.getGameId();
+
+        // gameId가 없으면 date, time, location으로 Schedule 자동 매칭
+        if (finalGameId == null || finalGameId.isEmpty()) {
+            finalGameId = findScheduleByDateAndLocation(request.getDate(), request.getTime(), request.getLocation());
+        }
+
+        // gameId가 있으면 검증
+        if (finalGameId != null && !finalGameId.isEmpty()) {
+            // 1. gameId가 실제 Schedule의 ID인지 확인 (gameId는 Schedule의 _id)
+            Optional<com.supersohee.api.schedule.domain.Schedule> schedule = scheduleRepository
+                    .findById(finalGameId);
+            if (schedule.isEmpty() || !schedule.get().getIsActive()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "유효하지 않은 gameId입니다. 존재하지 않거나 비활성화된 스케줄입니다.");
+            }
+
+            // 2. 같은 경기에 대한 일지가 이미 있는지 확인
+            Optional<Diary> existingDiary = diaryRepository.findByUserIdAndGameId(userId, finalGameId);
             if (existingDiary.isPresent()) {
-                throw new RuntimeException("이미 해당 경기에 대한 일지가 존재합니다");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 해당 경기에 대한 일지가 존재합니다");
             }
         }
 
@@ -67,7 +90,7 @@ public class DiaryService {
 
         Diary diary = Diary.builder()
                 .userId(userId)
-                .gameId(request.getGameId())
+                .gameId(finalGameId)
                 .date(request.getDate())
                 .time(request.getTime())
                 .location(request.getLocation())
@@ -136,14 +159,20 @@ public class DiaryService {
         Diary.DiaryBuilder builder = diary.toBuilder();
 
         // 경기 정보 (gameId는 변경 불가)
-        if (request.getDate() != null) builder.date(request.getDate());
-        if (request.getTime() != null) builder.time(request.getTime());
-        if (request.getLocation() != null) builder.location(request.getLocation());
-        if (request.getWatchType() != null) builder.watchType(request.getWatchType());
+        if (request.getDate() != null)
+            builder.date(request.getDate());
+        if (request.getTime() != null)
+            builder.time(request.getTime());
+        if (request.getLocation() != null)
+            builder.location(request.getLocation());
+        if (request.getWatchType() != null)
+            builder.watchType(request.getWatchType());
 
         // MVP
-        if (request.getMvpPlayerName() != null) builder.mvpPlayerName(request.getMvpPlayerName());
-        if (request.getMvpReason() != null) builder.mvpReason(request.getMvpReason());
+        if (request.getMvpPlayerName() != null)
+            builder.mvpPlayerName(request.getMvpPlayerName());
+        if (request.getMvpReason() != null)
+            builder.mvpReason(request.getMvpReason());
 
         // PlayerStats (null이면 업데이트 안 함, 빈 배열이면 빈 배열로 설정)
         if (request.getPlayerStats() != null) {
@@ -183,37 +212,62 @@ public class DiaryService {
         }
 
         // 경기 결과
-        if (request.getGameResult() != null) builder.gameResult(request.getGameResult());
-        if (request.getGameHomeScore() != null) builder.gameHomeScore(request.getGameHomeScore());
-        if (request.getGameAwayScore() != null) builder.gameAwayScore(request.getGameAwayScore());
-        if (request.getGameWinner() != null) builder.gameWinner(request.getGameWinner());
+        if (request.getGameResult() != null)
+            builder.gameResult(request.getGameResult());
+        if (request.getGameHomeScore() != null)
+            builder.gameHomeScore(request.getGameHomeScore());
+        if (request.getGameAwayScore() != null)
+            builder.gameAwayScore(request.getGameAwayScore());
+        if (request.getGameWinner() != null)
+            builder.gameWinner(request.getGameWinner());
 
         // 동행자 & 좌석
-        if (request.getCompanions() != null) builder.companions(request.getCompanions());
-        if (request.getCompanion() != null) builder.companion(request.getCompanion());
-        if (request.getSeat() != null) builder.seat(request.getSeat());
-        if (request.getSeatId() != null) builder.seatId(request.getSeatId());
+        if (request.getCompanions() != null)
+            builder.companions(request.getCompanions());
+        if (request.getCompanion() != null)
+            builder.companion(request.getCompanion());
+        if (request.getSeat() != null)
+            builder.seat(request.getSeat());
+        if (request.getSeatId() != null)
+            builder.seatId(request.getSeatId());
 
         // 사진 & 메모
-        if (request.getPhotoUrls() != null) builder.photoUrls(request.getPhotoUrls());
-        if (request.getMemo() != null) builder.memo(request.getMemo());
-        if (request.getContent() != null) builder.content(request.getContent());
+        if (request.getPhotoUrls() != null)
+            builder.photoUrls(request.getPhotoUrls());
+        if (request.getMemo() != null)
+            builder.memo(request.getMemo());
+        if (request.getContent() != null)
+            builder.content(request.getContent());
 
         // 하위 호환성 필드
-        if (request.getCheeredPlayerName() != null) builder.cheeredPlayerName(request.getCheeredPlayerName());
-        if (request.getCheeredPlayerPoints() != null) builder.cheeredPlayerPoints(request.getCheeredPlayerPoints());
-        if (request.getCheeredPlayerAssists() != null) builder.cheeredPlayerAssists(request.getCheeredPlayerAssists());
-        if (request.getCheeredPlayerRebounds() != null) builder.cheeredPlayerRebounds(request.getCheeredPlayerRebounds());
-        if (request.getCheeredPlayerTwoPointMade() != null) builder.cheeredPlayerTwoPointMade(request.getCheeredPlayerTwoPointMade());
-        if (request.getCheeredPlayerTwoPointPercent() != null) builder.cheeredPlayerTwoPointPercent(request.getCheeredPlayerTwoPointPercent());
-        if (request.getCheeredPlayerThreePointMade() != null) builder.cheeredPlayerThreePointMade(request.getCheeredPlayerThreePointMade());
-        if (request.getCheeredPlayerThreePointPercent() != null) builder.cheeredPlayerThreePointPercent(request.getCheeredPlayerThreePointPercent());
-        if (request.getCheeredPlayerFreeThrowMade() != null) builder.cheeredPlayerFreeThrowMade(request.getCheeredPlayerFreeThrowMade());
-        if (request.getCheeredPlayerFreeThrowPercent() != null) builder.cheeredPlayerFreeThrowPercent(request.getCheeredPlayerFreeThrowPercent());
-        if (request.getCheeredPlayerFouls() != null) builder.cheeredPlayerFouls(request.getCheeredPlayerFouls());
-        if (request.getCheeredPlayerBlocks() != null) builder.cheeredPlayerBlocks(request.getCheeredPlayerBlocks());
-        if (request.getCheeredPlayerTurnovers() != null) builder.cheeredPlayerTurnovers(request.getCheeredPlayerTurnovers());
-        if (request.getCheeredPlayerMemo() != null) builder.cheeredPlayerMemo(request.getCheeredPlayerMemo());
+        if (request.getCheeredPlayerName() != null)
+            builder.cheeredPlayerName(request.getCheeredPlayerName());
+        if (request.getCheeredPlayerPoints() != null)
+            builder.cheeredPlayerPoints(request.getCheeredPlayerPoints());
+        if (request.getCheeredPlayerAssists() != null)
+            builder.cheeredPlayerAssists(request.getCheeredPlayerAssists());
+        if (request.getCheeredPlayerRebounds() != null)
+            builder.cheeredPlayerRebounds(request.getCheeredPlayerRebounds());
+        if (request.getCheeredPlayerTwoPointMade() != null)
+            builder.cheeredPlayerTwoPointMade(request.getCheeredPlayerTwoPointMade());
+        if (request.getCheeredPlayerTwoPointPercent() != null)
+            builder.cheeredPlayerTwoPointPercent(request.getCheeredPlayerTwoPointPercent());
+        if (request.getCheeredPlayerThreePointMade() != null)
+            builder.cheeredPlayerThreePointMade(request.getCheeredPlayerThreePointMade());
+        if (request.getCheeredPlayerThreePointPercent() != null)
+            builder.cheeredPlayerThreePointPercent(request.getCheeredPlayerThreePointPercent());
+        if (request.getCheeredPlayerFreeThrowMade() != null)
+            builder.cheeredPlayerFreeThrowMade(request.getCheeredPlayerFreeThrowMade());
+        if (request.getCheeredPlayerFreeThrowPercent() != null)
+            builder.cheeredPlayerFreeThrowPercent(request.getCheeredPlayerFreeThrowPercent());
+        if (request.getCheeredPlayerFouls() != null)
+            builder.cheeredPlayerFouls(request.getCheeredPlayerFouls());
+        if (request.getCheeredPlayerBlocks() != null)
+            builder.cheeredPlayerBlocks(request.getCheeredPlayerBlocks());
+        if (request.getCheeredPlayerTurnovers() != null)
+            builder.cheeredPlayerTurnovers(request.getCheeredPlayerTurnovers());
+        if (request.getCheeredPlayerMemo() != null)
+            builder.cheeredPlayerMemo(request.getCheeredPlayerMemo());
 
         Diary updatedDiary = builder.build();
 
@@ -235,5 +289,76 @@ public class DiaryService {
         }
 
         diaryRepository.delete(diary);
+    }
+
+    /**
+     * date, time, location으로 Schedule을 찾아 gameId를 반환합니다.
+     * 일지 작성 시 gameId가 없을 때 자동으로 Schedule을 매칭하기 위해 사용됩니다.
+     * 
+     * @param date     "2026-01-10" 형식
+     * @param time     "19:00" 형식
+     * @param location "인천 도원체육관" 등
+     * @return Schedule의 _id (gameId), 매칭되는 Schedule이 없으면 null
+     */
+    private String findScheduleByDateAndLocation(String date, String time, String location) {
+        // date와 time이 모두 있어야 매칭 가능
+        if (date == null || date.isEmpty() || time == null || time.isEmpty()) {
+            return null;
+        }
+
+        try {
+            // date와 time을 파싱해서 LocalDateTime 생성
+            LocalDate localDate = LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE);
+            LocalTime localTime = LocalTime.parse(time, DateTimeFormatter.ofPattern("HH:mm"));
+            LocalDateTime targetDateTime = LocalDateTime.of(localDate, localTime);
+
+            // ±30분 범위로 Schedule 조회
+            LocalDateTime start = targetDateTime.minusMinutes(30);
+            LocalDateTime end = targetDateTime.plusMinutes(30);
+
+            List<com.supersohee.api.schedule.domain.Schedule> candidates = scheduleRepository
+                    .findByIsActiveTrueAndStartDateTimeBetweenOrderByStartDateTimeAsc(start, end);
+
+            // type이 "game"인 것만 필터링
+            List<com.supersohee.api.schedule.domain.Schedule> gameSchedules = candidates.stream()
+                    .filter(s -> "game".equals(s.getType()))
+                    .collect(Collectors.toList());
+
+            if (gameSchedules.isEmpty()) {
+                return null;
+            }
+
+            // location이 일치하는 것을 우선 선택
+            if (location != null && !location.isEmpty()) {
+                Optional<com.supersohee.api.schedule.domain.Schedule> locationMatch = gameSchedules.stream()
+                        .filter(s -> location.equals(s.getLocation()) ||
+                                (s.getLocation() != null && s.getLocation().contains(location)) ||
+                                (location.contains(s.getLocation() != null ? s.getLocation() : "")))
+                        .findFirst();
+
+                if (locationMatch.isPresent()) {
+                    return locationMatch.get().getId();
+                }
+            }
+
+            // location 매칭 실패 시 가장 가까운 시간의 Schedule 선택
+            com.supersohee.api.schedule.domain.Schedule best = gameSchedules.get(0);
+            long bestDiff = Math.abs(java.time.Duration.between(targetDateTime, best.getStartDateTime()).toMinutes());
+
+            for (com.supersohee.api.schedule.domain.Schedule s : gameSchedules) {
+                if (s.getStartDateTime() == null)
+                    continue;
+                long diff = Math.abs(java.time.Duration.between(targetDateTime, s.getStartDateTime()).toMinutes());
+                if (diff < bestDiff) {
+                    best = s;
+                    bestDiff = diff;
+                }
+            }
+
+            return best.getId();
+        } catch (Exception e) {
+            // 파싱 실패 시 null 반환 (자동 매칭 실패)
+            return null;
+        }
     }
 }

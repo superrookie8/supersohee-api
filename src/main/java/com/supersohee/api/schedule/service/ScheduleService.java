@@ -1,5 +1,7 @@
 package com.supersohee.api.schedule.service;
 
+import com.supersohee.api.game.domain.Game;
+import com.supersohee.api.game.repository.GameRepository;
 import com.supersohee.api.schedule.domain.Schedule;
 import com.supersohee.api.schedule.dto.ScheduleDetailsResponse;
 import com.supersohee.api.schedule.repository.ScheduleRepository;
@@ -9,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -19,6 +22,7 @@ public class ScheduleService {
 
     private final ScheduleRepository scheduleRepository;
     private final StadiumService stadiumService;
+    private final GameRepository gameRepository;
 
     // 공개: 활성 스케줄 조회 (날짜 범위)
     public List<Schedule> findActiveSchedules(LocalDateTime start, LocalDateTime end) {
@@ -40,7 +44,6 @@ public class ScheduleService {
                 .filter(Schedule::getIsActive)
                 .map(schedule -> {
                     Stadium stadium = null;
-                    String gameId = schedule.getGameId();
 
                     // 1. stadiumId가 있으면 우선 사용
                     if (schedule.getStadiumId() != null) {
@@ -53,8 +56,38 @@ public class ScheduleService {
                         stadium = findStadiumByLocation(schedule.getLocation());
                     }
 
-                    return ScheduleDetailsResponse.from(schedule, stadium, gameId);
+                    // 3. gameId가 없으면 (정규 경기/특수 경기 포함) 스케줄 정보로 자동 매칭 시도
+                    String resolvedGameId = resolveGameId(schedule, stadium);
+
+                    return ScheduleDetailsResponse.from(schedule, stadium, resolvedGameId);
                 });
+    }
+
+    /**
+     * 스케줄에 gameId가 비어있을 때 자동으로 gameId를 결정합니다.
+     *
+     * 우선순위:
+     * 1) schedule.gameId가 있으면 그대로 사용
+     * 2) type이 "game"이면 Schedule의 _id를 gameId로 사용 (Schedule 자체가 경기를 나타냄)
+     * 3) 그 외에는 null 반환
+     *
+     * - 이 로직은 "details 응답"에만 gameId를 채워주기 위한 것으로,
+     * DB의 Schedule 문서를 수정/저장하지 않습니다.
+     */
+    private String resolveGameId(Schedule schedule, Stadium stadium) {
+        // 1. schedule.gameId가 이미 있으면 그대로 사용
+        if (schedule.getGameId() != null && !schedule.getGameId().isBlank()) {
+            return schedule.getGameId();
+        }
+
+        // 2. type이 "game"이면 Schedule의 _id를 gameId로 사용
+        // Schedule 자체가 경기를 나타내므로 Schedule의 ID가 곧 gameId
+        if ("game".equals(schedule.getType())) {
+            return schedule.getId();
+        }
+
+        // 3. 그 외 타입(specialGame, other 등)은 gameId 없음
+        return null;
     }
 
     // location 기반으로 경기장 찾기

@@ -68,24 +68,15 @@ public class JacksonConfig implements WebMvcConfigurer {
     // HTTP 메시지 컨버터에 ObjectMapper 강제 적용
     @Override
     public void extendMessageConverters(List<org.springframework.http.converter.HttpMessageConverter<?>> converters) {
-        for (org.springframework.http.converter.HttpMessageConverter<?> converter : converters) {
+        for (int i = 0; i < converters.size(); i++) {
+            org.springframework.http.converter.HttpMessageConverter<?> converter = converters.get(i);
             if (converter instanceof MappingJackson2HttpMessageConverter) {
+                // 기존 컨버터를 제거하고 새로운 컨버터로 교체
                 MappingJackson2HttpMessageConverter jsonConverter = (MappingJackson2HttpMessageConverter) converter;
-                // 기존 ObjectMapper를 가져와서 설정 적용
-                ObjectMapper mapper = jsonConverter.getObjectMapper();
-                if (mapper != null) {
-                    JavaTimeModule javaTimeModule = new JavaTimeModule();
-                    javaTimeModule.addSerializer(LocalDateTime.class, new com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer(DateTimeFormatter.ISO_LOCAL_DATE_TIME) {
-                        @Override
-                        public void serialize(LocalDateTime value, com.fasterxml.jackson.core.JsonGenerator gen, com.fasterxml.jackson.databind.SerializerProvider provider) throws java.io.IOException {
-                            ZonedDateTime zonedDateTime = value.atZone(SEOUL_ZONE);
-                            gen.writeString(zonedDateTime.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
-                        }
-                    });
-                    mapper.registerModule(javaTimeModule);
-                    mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-                    mapper.setTimeZone(java.util.TimeZone.getTimeZone(SEOUL_ZONE));
-                }
+                ObjectMapper mapper = objectMapper(new Jackson2ObjectMapperBuilder());
+                jsonConverter.setObjectMapper(mapper);
+                converters.set(i, jsonConverter);
+                break; // 첫 번째 JSON 컨버터만 수정
             }
         }
     }
