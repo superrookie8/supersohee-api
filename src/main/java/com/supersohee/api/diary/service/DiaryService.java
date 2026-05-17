@@ -140,6 +140,14 @@ public class DiaryService {
         return diaryRepository.findByUserIdAndGameId(userId, gameId);
     }
 
+    // 특정 날짜의 내 일지 조회
+    public Optional<Diary> findByUserIdAndDate(String userId, String date) {
+        if (date == null || date.isBlank()) {
+            return Optional.empty();
+        }
+        return diaryRepository.findByUserIdAndDate(userId, date);
+    }
+
     // 직관일지 수정 (부분 업데이트 지원)
     @Transactional
     public Diary updateDiary(String userId, String diaryId, DiaryRequest request) {

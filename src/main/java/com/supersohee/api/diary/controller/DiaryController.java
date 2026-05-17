@@ -1,6 +1,7 @@
 package com.supersohee.api.diary.controller;
 
 import com.supersohee.api.diary.domain.Diary;
+import com.supersohee.api.diary.dto.DiaryCheckResponse;
 import com.supersohee.api.diary.dto.DiaryRequest;
 import com.supersohee.api.diary.dto.DiaryResponse;
 import com.supersohee.api.diary.service.DiaryService;
@@ -78,19 +79,45 @@ public class DiaryController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // 특정 경기의 내 일지 조회 (인증 필요)
-    // 일지가 없을 때 404 대신 200 OK와 null 반환 (프론트엔드에서 일지 작성 페이지로 이동 가능)
+    /**
+     * 캘린더에서 경기(일정) 선택 시 호출 — POST 전에 일지 존재 여부 확인.
+     * exists=true → 모달("이미 작성한 일지가 있습니다. 수정하시겠습니까?") 후 diaryId로 수정 페이지
+     * exists=false → 작성 페이지로 이동
+     */
     @GetMapping("/game/{gameId}")
-    public ResponseEntity<DiaryResponse> getDiaryByGame(
+    public ResponseEntity<DiaryCheckResponse> getDiaryByGame(
             @AuthenticationPrincipal String userId,
             @PathVariable String gameId) {
-        Optional<Diary> diary = diaryService.findByUserIdAndGameId(userId, gameId);
-        if (diary.isPresent()) {
-            DiaryResponse response = DiaryResponse.from(diary.get());
-            return ResponseEntity.ok(convertImageKeysToUrls(response));
+        return diaryService.findByUserIdAndGameId(userId, gameId)
+                .map(diary -> DiaryCheckResponse.found(diary))
+                .map(check -> convertCheckImageUrls(check))
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.ok(DiaryCheckResponse.notFound()));
+    }
+
+    /**
+     * 날짜만으로 일지 존재 여부 확인 (gameId 없이 날짜 선택 시).
+     */
+    @GetMapping("/date/{date}")
+    public ResponseEntity<DiaryCheckResponse> getDiaryByDate(
+            @AuthenticationPrincipal String userId,
+            @PathVariable String date) {
+        return diaryService.findByUserIdAndDate(userId, date)
+                .map(diary -> DiaryCheckResponse.found(diary))
+                .map(check -> convertCheckImageUrls(check))
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.ok(DiaryCheckResponse.notFound()));
+    }
+
+    private DiaryCheckResponse convertCheckImageUrls(DiaryCheckResponse check) {
+        if (check.getDiary() == null) {
+            return check;
         }
-        // 일지가 없을 때 200 OK와 null 반환
-        return ResponseEntity.ok().build();
+        return DiaryCheckResponse.builder()
+                .exists(check.isExists())
+                .diaryId(check.getDiaryId())
+                .diary(convertImageKeysToUrls(check.getDiary()))
+                .build();
     }
 
     // 직관일지 수정 (인증 필요, 본인 것만)
