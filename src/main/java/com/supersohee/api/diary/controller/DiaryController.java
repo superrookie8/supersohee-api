@@ -12,6 +12,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -78,15 +79,18 @@ public class DiaryController {
     }
 
     // 특정 경기의 내 일지 조회 (인증 필요)
+    // 일지가 없을 때 404 대신 200 OK와 null 반환 (프론트엔드에서 일지 작성 페이지로 이동 가능)
     @GetMapping("/game/{gameId}")
     public ResponseEntity<DiaryResponse> getDiaryByGame(
             @AuthenticationPrincipal String userId,
             @PathVariable String gameId) {
-        return diaryService.findByUserIdAndGameId(userId, gameId)
-                .map(DiaryResponse::from)
-                .map(this::convertImageKeysToUrls) // 키를 서명된 URL로 변환
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        Optional<Diary> diary = diaryService.findByUserIdAndGameId(userId, gameId);
+        if (diary.isPresent()) {
+            DiaryResponse response = DiaryResponse.from(diary.get());
+            return ResponseEntity.ok(convertImageKeysToUrls(response));
+        }
+        // 일지가 없을 때 200 OK와 null 반환
+        return ResponseEntity.ok().build();
     }
 
     // 직관일지 수정 (인증 필요, 본인 것만)

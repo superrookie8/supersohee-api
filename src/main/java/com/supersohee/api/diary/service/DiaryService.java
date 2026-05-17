@@ -35,21 +35,17 @@ public class DiaryService {
             finalGameId = findScheduleByDateAndLocation(request.getDate(), request.getTime(), request.getLocation());
         }
 
-        // gameId가 있으면 검증
+        // gameId가 있으면 Schedule 유효성 검증
         if (finalGameId != null && !finalGameId.isEmpty()) {
-            // 1. gameId가 실제 Schedule의 ID인지 확인 (gameId는 Schedule의 _id)
             Optional<com.supersohee.api.schedule.domain.Schedule> schedule = scheduleRepository
                     .findById(finalGameId);
             if (schedule.isEmpty() || !schedule.get().getIsActive()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "유효하지 않은 gameId입니다. 존재하지 않거나 비활성화된 스케줄입니다.");
             }
-
-            // 2. 같은 경기에 대한 일지가 이미 있는지 확인
-            Optional<Diary> existingDiary = diaryRepository.findByUserIdAndGameId(userId, finalGameId);
-            if (existingDiary.isPresent()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 해당 경기에 대한 일지가 존재합니다");
-            }
         }
+
+        // 중복 일지 작성 방지 (409 Conflict)
+        assertNoExistingDiary(userId, finalGameId, request.getDate());
 
         // PlayerStats 변환
         List<Diary.PlayerStatRecord> playerStats = null;
@@ -289,6 +285,22 @@ public class DiaryService {
         }
 
         diaryRepository.delete(diary);
+    }
+
+    /**
+     * 동일 경기(gameId) 또는 동일 날짜(date)에 이미 작성한 일지가 있으면 409 Conflict.
+     */
+    private void assertNoExistingDiary(String userId, String gameId, String date) {
+        if (gameId != null && !gameId.isEmpty()) {
+            if (diaryRepository.findByUserIdAndGameId(userId, gameId).isPresent()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 작성한 일지가 있습니다");
+            }
+        }
+        if (date != null && !date.isEmpty()) {
+            if (diaryRepository.findByUserIdAndDate(userId, date).isPresent()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 작성한 일지가 있습니다");
+            }
+        }
     }
 
     /**

@@ -39,7 +39,7 @@ public class SecurityConfig {
                                 response.setStatus(HttpServletResponse.SC_OK);
                                 return;
                         }
-                        
+
                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                         response.setCharacterEncoding("UTF-8");
@@ -81,6 +81,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/users/{userId}").permitAll()
                                                 .requestMatchers("/api/events/**").permitAll()
                                                 .requestMatchers("/api/schedules/**").permitAll() // 스케줄 조회는 공개
+                                                .requestMatchers("/api/arcade/ranking").permitAll() // 랭킹 조회는 공개
                                                 // 인증 필요 엔드포인트
                                                 .requestMatchers("/api/users/me").authenticated()
                                                 .requestMatchers("/api/diary/**").authenticated()
