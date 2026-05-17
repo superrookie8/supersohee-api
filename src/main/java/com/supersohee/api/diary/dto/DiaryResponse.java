@@ -49,6 +49,10 @@ public class DiaryResponse {
     private List<String> companion;
     private String seat;
     private String seatId;
+    /** 좌석 선택 UI 복원용 경기장 ID (seatInfo 또는 일정에서 유도) */
+    private String stadiumId;
+    /** seatId로 조회한 좌석 상세 (수정 페이지 pre-select용) */
+    private DiarySeatInfoResponse seatInfo;
 
     // 사진 & 메모
     private List<String> photoUrls;

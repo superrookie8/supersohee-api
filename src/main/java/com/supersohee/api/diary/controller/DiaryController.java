@@ -46,8 +46,7 @@ public class DiaryController {
         validateGameResult(request.getGameResult());
         
         Diary diary = diaryService.createDiary(userId, request);
-        // 작성 시에는 키 그대로 저장되므로 변환 불필요
-        return ResponseEntity.ok(DiaryResponse.from(diary));
+        return ResponseEntity.ok(diaryService.toDiaryResponse(diary));
     }
 
     // 내가 쓴 직관일지 목록 조회 (인증 필요)
@@ -56,8 +55,8 @@ public class DiaryController {
             @AuthenticationPrincipal String userId) {
         List<Diary> diaries = diaryService.findMyDiaries(userId);
         List<DiaryResponse> responses = diaries.stream()
-                .map(DiaryResponse::from)
-                .map(this::convertImageKeysToUrls) // 키를 서명된 URL로 변환
+                .map(diaryService::toDiaryResponse)
+                .map(this::convertImageKeysToUrls)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responses);
     }
@@ -73,7 +72,7 @@ public class DiaryController {
                     if (!diary.getUserId().equals(userId)) {
                         throw new RuntimeException("본인의 일지만 조회할 수 있습니다");
                     }
-                    return convertImageKeysToUrls(DiaryResponse.from(diary)); // 키를 서명된 URL로 변환
+                    return convertImageKeysToUrls(diaryService.toDiaryResponse(diary));
                 })
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -89,7 +88,7 @@ public class DiaryController {
             @AuthenticationPrincipal String userId,
             @PathVariable String gameId) {
         return diaryService.findByUserIdAndGameId(userId, gameId)
-                .map(diary -> DiaryCheckResponse.found(diary))
+                .map(diary -> toDiaryCheckResponse(diary))
                 .map(check -> convertCheckImageUrls(check))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.ok(DiaryCheckResponse.notFound()));
@@ -103,10 +102,18 @@ public class DiaryController {
             @AuthenticationPrincipal String userId,
             @PathVariable String date) {
         return diaryService.findByUserIdAndDate(userId, date)
-                .map(diary -> DiaryCheckResponse.found(diary))
+                .map(diary -> toDiaryCheckResponse(diary))
                 .map(check -> convertCheckImageUrls(check))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.ok(DiaryCheckResponse.notFound()));
+    }
+
+    private DiaryCheckResponse toDiaryCheckResponse(Diary diary) {
+        return DiaryCheckResponse.builder()
+                .exists(true)
+                .diaryId(diary.getId())
+                .diary(diaryService.toDiaryResponse(diary))
+                .build();
     }
 
     private DiaryCheckResponse convertCheckImageUrls(DiaryCheckResponse check) {
@@ -130,8 +137,7 @@ public class DiaryController {
         validateGameResult(request.getGameResult());
         
         Diary diary = diaryService.updateDiary(userId, diaryId, request);
-        // 수정 시에는 키 그대로 저장되므로 변환 불필요
-        return ResponseEntity.ok(DiaryResponse.from(diary));
+        return ResponseEntity.ok(diaryService.toDiaryResponse(diary));
     }
     
     // gameResult 검증 헬퍼 메서드

@@ -2,8 +2,13 @@ package com.supersohee.api.diary.service;
 
 import com.supersohee.api.diary.domain.Diary;
 import com.supersohee.api.diary.dto.DiaryRequest;
+import com.supersohee.api.diary.dto.DiaryResponse;
+import com.supersohee.api.diary.dto.DiarySeatInfoResponse;
 import com.supersohee.api.diary.repository.DiaryRepository;
+import com.supersohee.api.schedule.domain.Schedule;
 import com.supersohee.api.schedule.repository.ScheduleRepository;
+import com.supersohee.api.stadium.domain.StadiumSeat;
+import com.supersohee.api.stadium.repository.StadiumSeatRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -24,6 +29,7 @@ public class DiaryService {
 
     private final DiaryRepository diaryRepository;
     private final ScheduleRepository scheduleRepository;
+    private final StadiumSeatRepository stadiumSeatRepository;
 
     // 직관일지 작성
     @Transactional
@@ -148,6 +154,35 @@ public class DiaryService {
         return diaryRepository.findByUserIdAndDate(userId, date);
     }
 
+    /**
+     * 일지 응답에 stadiumId, seatInfo(구역/블럭/열/번)를 채워 수정 페이지에서 좌석 UI 복원 가능하게 함.
+     */
+    public DiaryResponse toDiaryResponse(Diary diary) {
+        DiaryResponse base = DiaryResponse.from(diary);
+        String stadiumId = null;
+        DiarySeatInfoResponse seatInfo = null;
+
+        if (diary.getSeatId() != null && !diary.getSeatId().isBlank()) {
+            Optional<StadiumSeat> seat = stadiumSeatRepository.findById(diary.getSeatId());
+            if (seat.isPresent()) {
+                seatInfo = DiarySeatInfoResponse.from(seat.get());
+                stadiumId = seat.get().getStadiumId();
+            }
+        }
+
+        if (stadiumId == null && diary.getGameId() != null && !diary.getGameId().isBlank()) {
+            stadiumId = scheduleRepository.findById(diary.getGameId())
+                    .map(Schedule::getStadiumId)
+                    .filter(id -> id != null && !id.isBlank())
+                    .orElse(null);
+        }
+
+        return base.toBuilder()
+                .stadiumId(stadiumId)
+                .seatInfo(seatInfo)
+                .build();
+    }
+
     // 직관일지 수정 (부분 업데이트 지원)
     @Transactional
     public Diary updateDiary(String userId, String diaryId, DiaryRequest request) {
@@ -230,9 +265,10 @@ public class DiaryService {
             builder.companions(request.getCompanions());
         if (request.getCompanion() != null)
             builder.companion(request.getCompanion());
-        if (request.getSeat() != null)
+        // 빈 문자열로 기존 좌석이 지워지지 않도록 blank는 무시
+        if (request.getSeat() != null && !request.getSeat().isBlank())
             builder.seat(request.getSeat());
-        if (request.getSeatId() != null)
+        if (request.getSeatId() != null && !request.getSeatId().isBlank())
             builder.seatId(request.getSeatId());
 
         // 사진 & 메모
