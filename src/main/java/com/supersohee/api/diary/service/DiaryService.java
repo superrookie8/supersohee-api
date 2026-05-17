@@ -90,7 +90,7 @@ public class DiaryService {
                     .build();
         }
 
-        Diary diary = Diary.builder()
+        Diary.DiaryBuilder diaryBuilder = Diary.builder()
                 .userId(userId)
                 .gameId(finalGameId)
                 .date(request.getDate())
@@ -107,8 +107,6 @@ public class DiaryService {
                 .gameWinner(request.getGameWinner())
                 .companions(request.getCompanions())
                 .companion(request.getCompanion())
-                .seat(request.getSeat())
-                .seatId(request.getSeatId())
                 .photoUrls(request.getPhotoUrls())
                 .memo(request.getMemo())
                 .content(request.getContent())
@@ -125,8 +123,10 @@ public class DiaryService {
                 .cheeredPlayerFouls(request.getCheeredPlayerFouls())
                 .cheeredPlayerBlocks(request.getCheeredPlayerBlocks())
                 .cheeredPlayerTurnovers(request.getCheeredPlayerTurnovers())
-                .cheeredPlayerMemo(request.getCheeredPlayerMemo())
-                .build();
+                .cheeredPlayerMemo(request.getCheeredPlayerMemo());
+
+        applySeatToDiary(diaryBuilder, request, finalGameId);
+        Diary diary = diaryBuilder.build();
 
         return diaryRepository.save(diary);
     }
@@ -159,28 +159,191 @@ public class DiaryService {
      */
     public DiaryResponse toDiaryResponse(Diary diary) {
         DiaryResponse base = DiaryResponse.from(diary);
-        String stadiumId = null;
-        DiarySeatInfoResponse seatInfo = null;
+        DiarySeatInfoResponse seatInfo = resolveSeatInfo(diary);
+        String stadiumId = seatInfo != null ? seatInfo.getStadiumId() : diary.getSeatStadiumId();
 
-        if (diary.getSeatId() != null && !diary.getSeatId().isBlank()) {
-            Optional<StadiumSeat> seat = stadiumSeatRepository.findById(diary.getSeatId());
-            if (seat.isPresent()) {
-                seatInfo = DiarySeatInfoResponse.from(seat.get());
-                stadiumId = seat.get().getStadiumId();
-            }
-        }
-
-        if (stadiumId == null && diary.getGameId() != null && !diary.getGameId().isBlank()) {
+        if ((stadiumId == null || stadiumId.isBlank()) && diary.getGameId() != null && !diary.getGameId().isBlank()) {
             stadiumId = scheduleRepository.findById(diary.getGameId())
                     .map(Schedule::getStadiumId)
                     .filter(id -> id != null && !id.isBlank())
                     .orElse(null);
         }
 
+        String seatDisplay = base.getSeat();
+        if (seatDisplay == null || seatDisplay.isBlank()) {
+            if (seatInfo != null) {
+                seatDisplay = formatSeatLabel(
+                        seatInfo.getZoneName(),
+                        seatInfo.getBlockName(),
+                        seatInfo.getRow(),
+                        seatInfo.getNumber());
+            }
+        }
+
         return base.toBuilder()
                 .stadiumId(stadiumId)
+                .seat(seatDisplay)
                 .seatInfo(seatInfo)
                 .build();
+    }
+
+    /**
+     * seatId로 stadium_seats 조회, 없으면 일지에 저장된 좌석 스냅샷으로 seatInfo 구성.
+     */
+    private DiarySeatInfoResponse resolveSeatInfo(Diary diary) {
+        if (diary.getSeatId() != null && !diary.getSeatId().isBlank()) {
+            Optional<StadiumSeat> seat = stadiumSeatRepository.findById(diary.getSeatId());
+            if (seat.isPresent()) {
+                return DiarySeatInfoResponse.from(seat.get());
+            }
+        }
+        if (hasSeatSnapshot(diary)) {
+            return DiarySeatInfoResponse.builder()
+                    .seatId(diary.getSeatId())
+                    .stadiumId(diary.getSeatStadiumId())
+                    .zoneName(diary.getSeatZoneName())
+                    .blockName(diary.getSeatBlockName())
+                    .row(diary.getSeatRow())
+                    .number(diary.getSeatNumber())
+                    .seatType(diary.getSeatType())
+                    .floor(diary.getSeatFloor())
+                    .build();
+        }
+        return null;
+    }
+
+    private boolean hasSeatSnapshot(Diary diary) {
+        return (diary.getSeatZoneName() != null && !diary.getSeatZoneName().isBlank())
+                || (diary.getSeatRow() != null && !diary.getSeatRow().isBlank())
+                || (diary.getSeatNumber() != null && !diary.getSeatNumber().isBlank());
+    }
+
+    /**
+     * seatId 또는 zone/row/number로 좌석 반영 + 표시 문구(seat) 저장.
+     * 프론트는 응답의 seat·seatInfo만으로 "하나프렌즈석 5열 38번" 표시 가능.
+     */
+    private void applySeatToDiary(Diary.DiaryBuilder builder, DiaryRequest request, String gameId) {
+        String seatId = resolveSeatIdFromRequest(request, gameId);
+        if (seatId != null && !seatId.isBlank()) {
+            builder.seatId(seatId);
+            applySeatSnapshotFromMaster(builder, seatId);
+        }
+        if (request.getSeat() != null && !request.getSeat().isBlank()) {
+            builder.seat(request.getSeat());
+        } else if (hasSeatSelectionInRequest(request)) {
+            applySeatSnapshotFromRequest(builder, request, gameId);
+        }
+    }
+
+    private String resolveSeatIdFromRequest(DiaryRequest request, String gameId) {
+        if (request.getSeatId() != null && !request.getSeatId().isBlank()) {
+            return request.getSeatId();
+        }
+        if (!hasSeatSelectionInRequest(request)) {
+            return null;
+        }
+        String stadiumId = resolveStadiumId(request.getStadiumId(), gameId);
+        if (stadiumId == null) {
+            return null;
+        }
+        Optional<StadiumSeat> seat = findSeatBySelection(
+                stadiumId,
+                request.getSeatZoneName(),
+                request.getSeatBlockName(),
+                request.getSeatRow(),
+                request.getSeatNumber());
+        return seat.map(StadiumSeat::getId).orElse(null);
+    }
+
+    private String resolveStadiumId(String requestStadiumId, String gameId) {
+        if (requestStadiumId != null && !requestStadiumId.isBlank()) {
+            return requestStadiumId;
+        }
+        if (gameId == null || gameId.isBlank()) {
+            return null;
+        }
+        return scheduleRepository.findById(gameId)
+                .map(Schedule::getStadiumId)
+                .filter(id -> id != null && !id.isBlank())
+                .orElse(null);
+    }
+
+    private Optional<StadiumSeat> findSeatBySelection(
+            String stadiumId,
+            String zoneName,
+            String blockName,
+            String row,
+            String number) {
+        if (zoneName == null || zoneName.isBlank() || row == null || row.isBlank() || number == null || number.isBlank()) {
+            return Optional.empty();
+        }
+        if (blockName != null && !blockName.isBlank()) {
+            return stadiumSeatRepository.findFirstByStadiumIdAndZoneNameAndBlockNameAndRowAndNumber(
+                    stadiumId, zoneName, blockName, row, number);
+        }
+        return stadiumSeatRepository.findFirstByStadiumIdAndZoneNameAndRowAndNumber(
+                stadiumId, zoneName, row, number);
+    }
+
+    private boolean hasSeatSelectionInRequest(DiaryRequest request) {
+        return request.getSeatZoneName() != null && !request.getSeatZoneName().isBlank()
+                && request.getSeatRow() != null && !request.getSeatRow().isBlank()
+                && request.getSeatNumber() != null && !request.getSeatNumber().isBlank();
+    }
+
+    private void applySeatSnapshotFromRequest(Diary.DiaryBuilder builder, DiaryRequest request, String gameId) {
+        String stadiumId = resolveStadiumId(request.getStadiumId(), gameId);
+        builder.seat(formatSeatLabel(
+                        request.getSeatZoneName(),
+                        request.getSeatBlockName(),
+                        request.getSeatRow(),
+                        request.getSeatNumber()))
+                .seatStadiumId(stadiumId)
+                .seatZoneName(request.getSeatZoneName())
+                .seatBlockName(request.getSeatBlockName())
+                .seatRow(request.getSeatRow())
+                .seatNumber(request.getSeatNumber());
+    }
+
+    /** seatId가 있으면 stadium_seats에서 좌석 상세를 읽어 일지 문서에 스냅샷·표시 문구 저장 */
+    private void applySeatSnapshotFromMaster(Diary.DiaryBuilder builder, String seatId) {
+        stadiumSeatRepository.findById(seatId).ifPresent(seat -> {
+            builder.seatId(seatId)
+                    .seat(formatSeatLabel(seat.getZoneName(), seat.getBlockName(), seat.getRow(), seat.getNumber()))
+                    .seatStadiumId(seat.getStadiumId())
+                    .seatZoneName(seat.getZoneName())
+                    .seatBlockName(seat.getBlockName())
+                    .seatRow(seat.getRow())
+                    .seatNumber(seat.getNumber())
+                    .seatType(seat.getSeatType())
+                    .seatFloor(seat.getFloor());
+        });
+    }
+
+    private String formatSeatLabel(String zoneName, String blockName, String row, String number) {
+        StringBuilder sb = new StringBuilder();
+        if (zoneName != null && !zoneName.isBlank()) {
+            sb.append(zoneName.trim());
+        }
+        if (blockName != null && !blockName.isBlank()) {
+            if (sb.length() > 0) {
+                sb.append(' ');
+            }
+            sb.append(blockName.trim());
+        }
+        if (row != null && !row.isBlank()) {
+            if (sb.length() > 0) {
+                sb.append(' ');
+            }
+            sb.append(row.trim());
+        }
+        if (number != null && !number.isBlank()) {
+            if (sb.length() > 0) {
+                sb.append(' ');
+            }
+            sb.append(number.trim());
+        }
+        return sb.length() > 0 ? sb.toString() : null;
     }
 
     // 직관일지 수정 (부분 업데이트 지원)
@@ -268,8 +431,7 @@ public class DiaryService {
         // 빈 문자열로 기존 좌석이 지워지지 않도록 blank는 무시
         if (request.getSeat() != null && !request.getSeat().isBlank())
             builder.seat(request.getSeat());
-        if (request.getSeatId() != null && !request.getSeatId().isBlank())
-            builder.seatId(request.getSeatId());
+        applySeatToDiary(builder, request, diary.getGameId());
 
         // 사진 & 메모
         if (request.getPhotoUrls() != null)

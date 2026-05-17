@@ -44,6 +44,13 @@ public class DiaryRequest {
     private String seat;             // 좌석 문자열 (nullable)
     private String seatId;           // StadiumSeat.id 참조 (nullable, 기존 유지)
 
+    /** 좌석 선택 UI에서 seatId 없이 보낼 때 (서버가 seatId·seat 문구 자동 생성) */
+    private String stadiumId;
+    private String seatZoneName;
+    private String seatBlockName;
+    private String seatRow;
+    private String seatNumber;
+
     // 사진 & 메모 (모두 nullable)
     private List<String> photoUrls;  // nullable, 빈 배열 가능
     private String memo;             // 일지 메모 (nullable)

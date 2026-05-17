@@ -50,6 +50,14 @@ public class Diary extends BaseDocument {
     private List<String> companion;  // 동행자 User.id 리스트 (nullable, 기존 유지)
     private String seat;             // 좌석 문자열 (nullable, 새로 추가)
     private String seatId;           // StadiumSeat.id 참조 (nullable, 기존 유지)
+    /** 저장 시점 좌석 스냅샷 (stadium_seats 조회 실패 시 수정 화면 복원용) */
+    private String seatStadiumId;
+    private String seatZoneName;
+    private String seatBlockName;
+    private String seatRow;
+    private String seatNumber;
+    private String seatType;
+    private String seatFloor;
 
     // 사진 & 메모
     private List<String> photoUrls;  // nullable, 빈 배열 가능
