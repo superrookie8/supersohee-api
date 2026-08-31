@@ -12,4 +12,9 @@ public interface UserRepository extends MongoRepository<User, String> {
     
     // 이메일로 조회
     Optional<User> findByEmail(String email);
+
+    // 닉네임 중복 확인
+    Optional<User> findByNickname(String nickname);
+
+    boolean existsByNickname(String nickname);
 }

@@ -120,6 +120,9 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/games/**").permitAll()
                                                 .requestMatchers("/api/stadiums/**").permitAll()
                                                 .requestMatchers("/api/users/me").hasRole("USER")
+                                                // {userId} 패턴보다 먼저 둬야 한다. 뒤에 두면 permitAll에 먼저 걸려
+                                                // 인증 없이 닉네임 사용 여부를 조회할 수 있다.
+                                                .requestMatchers("/api/users/check-nickname").hasRole("USER")
                                                 .requestMatchers("/api/users/{userId}").permitAll()
                                                 .requestMatchers("/api/events/**").permitAll()
                                                 .requestMatchers("/api/schedules/**").permitAll() // 스케줄 조회는 공개

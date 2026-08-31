@@ -4,6 +4,7 @@ import com.supersohee.api.user.service.UserService;
 import com.supersohee.api.user.domain.User;
 import com.supersohee.api.user.dto.*;
 import com.supersohee.api.config.JwtUtil;
+import com.supersohee.api.image.service.ImageUploadService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +19,24 @@ public class UserController {
 
         private final UserService userService;
         private final JwtUtil jwtUtil;
+        private final ImageUploadService imageUploadService;
+
+        /**
+         * 저장된 profileImageUrl을 화면이 바로 쓸 수 있는 주소로 바꾼다.
+         *
+         * 직접 올린 사진은 다이어리와 같이 R2 키로 저장하므로 서명된 URL로 변환하고,
+         * Google 프로필처럼 이미 절대 URL인 값은 그대로 둔다.
+         */
+        private UserResponse withDisplayableProfileImage(UserResponse response) {
+                String stored = response.getProfileImageUrl();
+                if (stored == null || stored.isBlank() || stored.startsWith("http://")
+                                || stored.startsWith("https://")) {
+                        return response;
+                }
+                return response.toBuilder()
+                                .profileImageUrl(imageUploadService.generatePresignedUrl(stored))
+                                .build();
+        }
 
         // 회원가입
         @PostMapping("/signup")
@@ -60,15 +79,35 @@ public class UserController {
         public ResponseEntity<UserResponse> getCurrentUser(@AuthenticationPrincipal String userId) {
                 return userService.getCurrentUser(userId)
                                 .map(UserResponse::from)
+                                .map(this::withDisplayableProfileImage)
                                 .map(ResponseEntity::ok)
                                 .orElse(ResponseEntity.notFound().build());
         }
 
-        // 유저 정보 조회
+        // 현재 로그인한 유저의 프로필 수정 (닉네임 / 프로필 사진)
+        @PatchMapping("/me")
+        public ResponseEntity<UserResponse> updateCurrentUser(
+                        @AuthenticationPrincipal String userId,
+                        @Valid @RequestBody UpdateMyProfileRequest request) {
+                return ResponseEntity.ok(withDisplayableProfileImage(UserResponse.from(
+                                userService.updateMyProfile(
+                                                userId, request.nickname(), request.profileImageUrl()))));
+        }
+
+        // 닉네임 중복 확인. 본인이 쓰고 있는 닉네임은 사용 가능으로 응답한다.
+        @GetMapping("/check-nickname")
+        public ResponseEntity<Map<String, Boolean>> checkNickname(
+                        @AuthenticationPrincipal String userId,
+                        @RequestParam(required = false) String nickname) {
+                return ResponseEntity.ok(Map.of(
+                                "available", userService.isNicknameAvailable(nickname, userId)));
+        }
+
+        // 다른 유저 정보 조회 (공개). 개인정보는 담지 않는다.
         @GetMapping("/{userId}")
-        public ResponseEntity<UserResponse> getUser(@PathVariable String userId) {
+        public ResponseEntity<PublicUserResponse> getUser(@PathVariable String userId) {
                 return userService.findById(userId)
-                                .map(UserResponse::from)
+                                .map(PublicUserResponse::from)
                                 .map(ResponseEntity::ok)
                                 .orElse(ResponseEntity.notFound().build());
         }

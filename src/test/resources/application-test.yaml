@@ -22,6 +22,8 @@ app:
     enabled: false
   article-index:
     enabled: false
+  user-index:
+    enabled: false
 
 cloudflare:
   r2:

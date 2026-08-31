@@ -9,13 +9,14 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Getter
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserResponse {
     private String id;
     private String provider;
-    private String providerId;
+    // providerId(구글 sub)는 어떤 화면도 쓰지 않으면서 계정 식별자를 브라우저까지
+    // 내보내므로 응답에 담지 않는다.
     private String email;
     private String nickname;
     private String profileImageUrl;
@@ -29,7 +30,6 @@ public class UserResponse {
         return UserResponse.builder()
                 .id(user.getId())
                 .provider(user.getProvider())
-                .providerId(user.getProviderId())
                 .email(user.getEmail())
                 .nickname(user.getNickname())
                 .profileImageUrl(user.getProfileImageUrl())

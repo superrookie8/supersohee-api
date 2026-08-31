@@ -130,9 +130,7 @@ public class ArcadeService {
 
                                         return RankingResponse.RankingEntry.builder()
                                                         .rank(i + 1)
-                                                        .userId(score.getUserId())
                                                         .nickname(user.getNickname())
-                                                        .profileImageUrl(user.getProfileImageUrl())
                                                         .bestScore(score.getBestScore())
                                                         .build();
                                 })
