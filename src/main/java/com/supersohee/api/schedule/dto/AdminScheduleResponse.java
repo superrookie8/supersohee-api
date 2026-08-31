@@ -18,7 +18,7 @@ public record AdminScheduleResponse(
     public static AdminScheduleResponse from(Schedule schedule) {
         return new AdminScheduleResponse(
                 schedule.getId(),
-                schedule.getSeason(),
+                schedule.resolveSeason(),
                 schedule.getStartDateTime() != null
                         ? schedule.getStartDateTime().toLocalDate().toString()
                         : null,
@@ -26,9 +26,9 @@ public record AdminScheduleResponse(
                         ? schedule.getStartDateTime().toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm"))
                         : null,
                 schedule.getOpponent() != null ? schedule.getOpponent() : schedule.getTitle(),
-                schedule.getIsHome(),
+                schedule.resolveIsHome(),
                 schedule.getExtraHome(),
-                schedule.getSpecialGame(),
+                schedule.resolveSpecialGame(),
                 schedule.getIsActive());
     }
 }

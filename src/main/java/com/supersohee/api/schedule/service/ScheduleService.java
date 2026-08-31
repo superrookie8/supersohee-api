@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Objects;
@@ -145,20 +146,37 @@ public class ScheduleService {
         return scheduleRepository.findAllByOrderByStartDateTimeDesc();
     }
 
+    // 어드민 목록: 소프트 삭제된 일정은 제외하고 경기일 오름차순으로 제공한다.
     public List<Schedule> findAdminSchedules(String season) {
         return findAllSchedules().stream()
-                .filter(schedule -> season == null || season.isBlank() || season.equals(schedule.getSeason()))
+                .filter(ScheduleService::isNotDeleted)
+                .filter(schedule -> season == null || season.isBlank()
+                        || season.equals(schedule.resolveSeason()))
+                .sorted(Comparator.comparing(
+                        Schedule::getStartDateTime,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
     }
 
+    // 어드민 시즌 목록: 최신 시즌이 먼저 오도록 내림차순으로 제공한다.
     public List<String> findAdminSeasons() {
         return findAllSchedules().stream()
-                .map(Schedule::getSeason)
+                .filter(ScheduleService::isNotDeleted)
+                .map(Schedule::resolveSeason)
                 .filter(Objects::nonNull)
                 .filter(value -> !value.isBlank())
                 .distinct()
-                .sorted()
+                .sorted(Comparator.reverseOrder())
                 .toList();
+    }
+
+    private static boolean isNotDeleted(Schedule schedule) {
+        return !Boolean.FALSE.equals(schedule.getIsActive());
+    }
+
+    // 캘린더 표시 색상: 홈 경기는 붉은색, 원정 경기는 파란색 (기존 데이터와 동일한 규칙)
+    private static String calendarColor(Boolean isHome) {
+        return Boolean.TRUE.equals(isHome) ? "#EF4444" : "#3B82F6";
     }
 
     @Transactional
@@ -169,7 +187,7 @@ public class ScheduleService {
                 .endDateTime(request.startDateTime().plusHours(2))
                 .location(Boolean.TRUE.equals(request.isHome()) ? "Home" : request.opponent())
                 .type(Boolean.TRUE.equals(request.specialGame()) ? "specialGame" : "game")
-                .color("#3B82F6")
+                .color(calendarColor(request.isHome()))
                 .season(request.season())
                 .opponent(request.opponent())
                 .isHome(request.isHome())
@@ -192,7 +210,7 @@ public class ScheduleService {
                 .endDateTime(request.startDateTime().plusHours(2))
                 .location(Boolean.TRUE.equals(request.isHome()) ? "Home" : request.opponent())
                 .type(Boolean.TRUE.equals(request.specialGame()) ? "specialGame" : "game")
-                .color(existing.getColor())
+                .color(calendarColor(request.isHome()))
                 .url(existing.getUrl())
                 .stadiumId(existing.getStadiumId())
                 .gameId(existing.getGameId())

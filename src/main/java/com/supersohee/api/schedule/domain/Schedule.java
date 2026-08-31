@@ -39,4 +39,33 @@ public class Schedule extends BaseDocument {
     
     // 노출 여부
     private Boolean isActive;
+
+    /**
+     * 시즌 문자열을 결정한다.
+     * season 필드가 없는 과거 문서(어드민 시즌 계약 이전에 적재된 경기)는
+     * 경기 일자로부터 시즌을 유추한다. WKBL 시즌은 가을에 시작해 이듬해 봄에 끝나므로
+     * 7월 이후 경기는 해당 연도 시작 시즌, 6월 이전 경기는 전년도 시작 시즌에 속한다.
+     */
+    public String resolveSeason() {
+        if (season != null && !season.isBlank()) {
+            return season;
+        }
+        if (startDateTime == null) {
+            return null;
+        }
+        int year = startDateTime.getYear();
+        return startDateTime.getMonthValue() >= 7
+                ? year + "-" + (year + 1)
+                : (year - 1) + "-" + year;
+    }
+
+    /** isHome 필드가 없는 과거 문서는 location("Home") 으로 홈 경기 여부를 판단한다. */
+    public boolean resolveIsHome() {
+        return isHome != null ? isHome : "Home".equals(location);
+    }
+
+    /** specialGame 필드가 없는 과거 문서(올스타전 등)는 type 으로 특별 경기 여부를 판단한다. */
+    public boolean resolveSpecialGame() {
+        return specialGame != null ? specialGame : "specialGame".equals(type);
+    }
 }

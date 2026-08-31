@@ -42,9 +42,7 @@ public class ScheduleResponse {
                 .url(schedule.getUrl())
                 .isActive(schedule.getIsActive())
                 .opponent(schedule.getOpponent() != null ? schedule.getOpponent() : schedule.getTitle())
-                .isHome(schedule.getIsHome() != null
-                        ? schedule.getIsHome()
-                        : "Home".equals(schedule.getLocation()))
+                .isHome(schedule.resolveIsHome())
                 .specialGame(schedule.getSpecialGame())
                 .createdAt(schedule.getCreatedAt())
                 .updatedAt(schedule.getUpdatedAt())
