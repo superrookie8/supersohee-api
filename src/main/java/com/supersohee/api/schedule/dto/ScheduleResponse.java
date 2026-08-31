@@ -21,6 +21,10 @@ public class ScheduleResponse {
     private String color;
     private String url;
     private Boolean isActive;
+
+    private String opponent;
+    private Boolean isHome;
+    private Boolean specialGame;
     
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -37,6 +41,11 @@ public class ScheduleResponse {
                 .color(schedule.getColor())
                 .url(schedule.getUrl())
                 .isActive(schedule.getIsActive())
+                .opponent(schedule.getOpponent() != null ? schedule.getOpponent() : schedule.getTitle())
+                .isHome(schedule.getIsHome() != null
+                        ? schedule.getIsHome()
+                        : "Home".equals(schedule.getLocation()))
+                .specialGame(schedule.getSpecialGame())
                 .createdAt(schedule.getCreatedAt())
                 .updatedAt(schedule.getUpdatedAt())
                 .build();
