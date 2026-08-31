@@ -2,6 +2,7 @@ package com.supersohee.api.playerstat.domain;
 
 import lombok.*;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 @Getter
@@ -14,6 +15,7 @@ public class PlayerStat {
     @Id
     private String id;
 
+    @Indexed(unique = true)
     private String season; // 2025-2026
     private String team; // 팀명 (BNK 썸, OK저축은행 등)
 

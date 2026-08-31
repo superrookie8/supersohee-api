@@ -2,6 +2,7 @@ package com.supersohee.api.user.domain;
 
 import lombok.*;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 import com.supersohee.api.common.BaseDocument;
 
@@ -10,6 +11,11 @@ import com.supersohee.api.common.BaseDocument;
 @AllArgsConstructor
 @NoArgsConstructor
 @Document(collection = "users")
+@CompoundIndex(
+        name = "provider_subject_unique",
+        def = "{'provider': 1, 'providerId': 1}",
+        unique = true,
+        partialFilter = "{'provider': {$type: 'string'}, 'providerId': {$type: 'string'}}")
 public class User extends BaseDocument {
     @Id
     private String id;
@@ -37,7 +43,7 @@ public class User extends BaseDocument {
                 .id(this.id)
                 .provider(this.provider)
                 .providerId(this.providerId) // 기존 값 유지
-                .email(email)
+                .email(email != null ? email : this.email)
                 .nickname(nickname)
                 .profileImageUrl(profileImageUrl != null ? profileImageUrl : this.profileImageUrl)
                 .password(this.password)

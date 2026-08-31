@@ -2,6 +2,7 @@ package com.supersohee.api.user.service;
 
 import com.supersohee.api.user.domain.User;
 import com.supersohee.api.user.repository.UserRepository;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
@@ -89,7 +90,13 @@ public class UserService {
                 .level(1)
                 .build();
 
-        return userRepository.save(newUser);
+        try {
+            return userRepository.save(newUser);
+        } catch (DuplicateKeyException duplicateKeyException) {
+            // A concurrent exchange may have inserted the same provider subject.
+            return userRepository.findByProviderAndProviderId(provider, providerId)
+                    .orElseThrow(() -> duplicateKeyException);
+        }
     }
 
     // 유저 조회

@@ -33,7 +33,7 @@ public class AdminAuthController {
         }
 
         // 어드민용 JWT 토큰 생성 (userId 대신 "admin" 사용)
-        String token = jwtUtil.generateToken("admin");
+        String token = jwtUtil.generateAdminToken("admin");
 
         Map<String, Object> response = new HashMap<>();
         response.put("token", token);

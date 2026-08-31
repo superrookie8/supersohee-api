@@ -4,11 +4,13 @@ import com.supersohee.api.player.domain.Player;
 import com.supersohee.api.player.repository.PlayerRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
 
 @Component
+@ConditionalOnProperty(prefix = "app.seed", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class PlayerDataInitializer {
 
@@ -33,7 +35,6 @@ public class PlayerDataInitializer {
                 .profileImageUrl(null) // 나중에 추가
                 .build();
 
-        Player savedPlayer = playerRepository.save(player);
-        System.out.println("이소희 선수 프로필이 생성되었습니다. ID: " + savedPlayer.getId());
+        playerRepository.save(player);
     }
 }

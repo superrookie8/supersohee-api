@@ -4,11 +4,13 @@ import com.supersohee.api.stadium.domain.Stadium;
 import com.supersohee.api.stadium.repository.StadiumRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
 
 @Component
+@ConditionalOnProperty(prefix = "app.seed", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class StadiumDataInitializer {
 

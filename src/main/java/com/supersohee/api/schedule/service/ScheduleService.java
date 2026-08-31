@@ -1,9 +1,11 @@
 package com.supersohee.api.schedule.service;
 
+import com.supersohee.api.admin.error.AdminApiException;
 import com.supersohee.api.game.domain.Game;
 import com.supersohee.api.game.repository.GameRepository;
 import com.supersohee.api.schedule.domain.Schedule;
 import com.supersohee.api.schedule.dto.ScheduleDetailsResponse;
+import com.supersohee.api.schedule.dto.AdminScheduleRequest;
 import com.supersohee.api.schedule.repository.ScheduleRepository;
 import com.supersohee.api.stadium.domain.Stadium;
 import com.supersohee.api.stadium.service.StadiumService;
@@ -15,6 +17,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -142,6 +145,68 @@ public class ScheduleService {
         return scheduleRepository.findAllByOrderByStartDateTimeDesc();
     }
 
+    public List<Schedule> findAdminSchedules(String season) {
+        return findAllSchedules().stream()
+                .filter(schedule -> season == null || season.isBlank() || season.equals(schedule.getSeason()))
+                .toList();
+    }
+
+    public List<String> findAdminSeasons() {
+        return findAllSchedules().stream()
+                .map(Schedule::getSeason)
+                .filter(Objects::nonNull)
+                .filter(value -> !value.isBlank())
+                .distinct()
+                .sorted()
+                .toList();
+    }
+
+    @Transactional
+    public Schedule createAdminSchedule(AdminScheduleRequest request) {
+        Schedule schedule = Schedule.builder()
+                .title(request.opponent())
+                .startDateTime(request.startDateTime())
+                .endDateTime(request.startDateTime().plusHours(2))
+                .location(Boolean.TRUE.equals(request.isHome()) ? "Home" : request.opponent())
+                .type(Boolean.TRUE.equals(request.specialGame()) ? "specialGame" : "game")
+                .color("#3B82F6")
+                .season(request.season())
+                .opponent(request.opponent())
+                .isHome(request.isHome())
+                .extraHome(request.extraHome())
+                .specialGame(Boolean.TRUE.equals(request.specialGame()))
+                .isActive(request.isActive() != null ? request.isActive() : true)
+                .build();
+        return scheduleRepository.save(schedule);
+    }
+
+    @Transactional
+    public Schedule updateAdminSchedule(String id, AdminScheduleRequest request) {
+        Schedule existing = scheduleRepository.findById(id)
+                .orElseThrow(() -> AdminApiException.notFound("Schedule"));
+        Schedule updated = Schedule.builder()
+                .id(existing.getId())
+                .title(request.opponent())
+                .description(existing.getDescription())
+                .startDateTime(request.startDateTime())
+                .endDateTime(request.startDateTime().plusHours(2))
+                .location(Boolean.TRUE.equals(request.isHome()) ? "Home" : request.opponent())
+                .type(Boolean.TRUE.equals(request.specialGame()) ? "specialGame" : "game")
+                .color(existing.getColor())
+                .url(existing.getUrl())
+                .stadiumId(existing.getStadiumId())
+                .gameId(existing.getGameId())
+                .season(request.season())
+                .opponent(request.opponent())
+                .isHome(request.isHome())
+                .extraHome(request.extraHome())
+                .specialGame(Boolean.TRUE.equals(request.specialGame()))
+                .isActive(request.isActive() != null ? request.isActive() : existing.getIsActive())
+                .build();
+        updated.setCreatedAt(existing.getCreatedAt());
+        return scheduleRepository.save(updated);
+    }
+
     // 어드민용: 스케줄 생성
     @Transactional
     public Schedule createSchedule(
@@ -237,6 +302,11 @@ public class ScheduleService {
                 .url(url != null ? url : schedule.getUrl())
                 .stadiumId(stadiumId != null ? stadiumId : schedule.getStadiumId())
                 .gameId(gameId != null ? gameId : schedule.getGameId())
+                .season(schedule.getSeason())
+                .opponent(schedule.getOpponent())
+                .isHome(schedule.getIsHome())
+                .extraHome(schedule.getExtraHome())
+                .specialGame(schedule.getSpecialGame())
                 .isActive(isActive != null ? isActive : schedule.getIsActive())
                 .build();
 
@@ -249,7 +319,7 @@ public class ScheduleService {
     @Transactional
     public void deleteSchedule(String scheduleId) {
         Schedule schedule = scheduleRepository.findById(scheduleId)
-                .orElseThrow(() -> new RuntimeException("스케줄을 찾을 수 없습니다"));
+                .orElseThrow(() -> AdminApiException.notFound("Schedule"));
 
         Schedule deletedSchedule = Schedule.builder()
                 .id(schedule.getId())
@@ -263,6 +333,11 @@ public class ScheduleService {
                 .url(schedule.getUrl())
                 .stadiumId(schedule.getStadiumId())
                 .gameId(schedule.getGameId())
+                .season(schedule.getSeason())
+                .opponent(schedule.getOpponent())
+                .isHome(schedule.getIsHome())
+                .extraHome(schedule.getExtraHome())
+                .specialGame(schedule.getSpecialGame())
                 .isActive(false)
                 .build();
 

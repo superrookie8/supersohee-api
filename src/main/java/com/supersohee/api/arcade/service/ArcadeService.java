@@ -3,6 +3,7 @@ package com.supersohee.api.arcade.service;
 import com.supersohee.api.arcade.domain.ArcadeScore;
 import com.supersohee.api.arcade.dto.RankingResponse;
 import com.supersohee.api.arcade.dto.ScoreResponse;
+import com.supersohee.api.arcade.error.ArcadeApiException;
 import com.supersohee.api.arcade.repository.ArcadeScoreRepository;
 import com.supersohee.api.user.domain.User;
 import com.supersohee.api.user.repository.UserRepository;
@@ -28,6 +29,7 @@ public class ArcadeService {
          */
         @Transactional
         public ScoreResponse submitScore(String userId, Integer score) {
+                User user = requireUser(userId);
                 Optional<ArcadeScore> existingScore = arcadeScoreRepository.findByUserId(userId);
 
                 ArcadeScore arcadeScore;
@@ -53,10 +55,6 @@ public class ArcadeService {
                         arcadeScore = arcadeScoreRepository.save(arcadeScore);
                 }
 
-                // 사용자 정보 조회
-                User user = userRepository.findById(userId)
-                                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다"));
-
                 // 랭킹 계산
                 List<ArcadeScore> allScores = arcadeScoreRepository.findAllByOrderByBestScoreDesc();
                 int rank = IntStream.range(0, allScores.size())
@@ -77,14 +75,12 @@ public class ArcadeService {
          * 내 최고 점수 조회
          */
         public ScoreResponse getMyScore(String userId) {
+                User user = requireUser(userId);
                 ArcadeScore arcadeScore = arcadeScoreRepository.findByUserId(userId)
                                 .orElse(null);
 
                 if (arcadeScore == null) {
                         // 점수가 없으면 null 반환
-                        User user = userRepository.findById(userId)
-                                        .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다"));
-
                         return ScoreResponse.builder()
                                         .userId(userId)
                                         .nickname(user.getNickname())
@@ -93,9 +89,6 @@ public class ArcadeService {
                                         .rank(null)
                                         .build();
                 }
-
-                User user = userRepository.findById(userId)
-                                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다"));
 
                 // 랭킹 계산
                 List<ArcadeScore> allScores = arcadeScoreRepository.findAllByOrderByBestScoreDesc();
@@ -161,5 +154,10 @@ public class ArcadeService {
                                 .totalCount(allScores.size())
                                 .myRank(myRank)
                                 .build();
+        }
+
+        private User requireUser(String userId) {
+                return userRepository.findById(userId)
+                                .orElseThrow(ArcadeApiException::userNotFound);
         }
 }

@@ -2,6 +2,7 @@ package com.supersohee.api.article.domain;
 
 import lombok.*;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
@@ -11,6 +12,11 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Document(collection = "articles")
+@CompoundIndex(
+        name = "article_source_url_unique",
+        def = "{'source': 1, 'url': 1}",
+        unique = true,
+        partialFilter = "{'source': {$type: 'string'}, 'url': {$type: 'string'}}")
 public class Article {
     @Id
     private String id;

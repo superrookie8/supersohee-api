@@ -2,6 +2,7 @@ package com.supersohee.api.event.dto;
 
 import com.supersohee.api.event.domain.Event;
 import lombok.*;
+import java.util.Collections;
 import java.util.List;
 
 @Getter
@@ -16,6 +17,7 @@ public class EventDetailsResponse {
     private CheckFields checkFields;
     private List<String> photos; // presigned URL 배열
     private List<String> photoKeys; // R2 키 배열 (사진 삭제용)
+    private Boolean isActive;
     
     public static EventDetailsResponse from(Event event) {
         return EventDetailsResponse.builder()
@@ -28,8 +30,10 @@ public class EventDetailsResponse {
                         .check2(event.getCheck2())
                         .check3(event.getCheck3())
                         .build())
+                .photos(Collections.emptyList())
+                .photoKeys(event.getPhotoKeys() != null ? event.getPhotoKeys() : Collections.emptyList())
+                .isActive(event.getIsActive())
                 .build();
         // photos는 Controller에서 R2 키를 presigned URL로 변환해서 설정
     }
 }
-

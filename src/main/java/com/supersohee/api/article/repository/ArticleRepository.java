@@ -15,7 +15,8 @@ public interface ArticleRepository extends MongoRepository<Article, String> {
     
      // 소스별 최신 기사 조회 (페이징: 점프볼/루키별 10개씩) - Page 반환으로 변경
      Page<Article> findBySourceOrderByPublishedAtDesc(String source, Pageable pageable);
-   
+     Page<Article> findAllByOrderByPublishedAtDesc(Pageable pageable);
+     Optional<Article> findBySourceAndUrl(String source, String url);
 
 
 }

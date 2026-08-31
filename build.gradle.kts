@@ -38,8 +38,8 @@ dependencies {
 	// Spring Security
     implementation("org.springframework.boot:spring-boot-starter-security")
     
-    // OAuth2 Client
-    implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
+    // Google ID token signature/JWKS verification
+    implementation("org.springframework.security:spring-security-oauth2-jose")
     
     // JWT (토큰 기반 인증용)
     implementation("io.jsonwebtoken:jjwt-api:0.12.3")

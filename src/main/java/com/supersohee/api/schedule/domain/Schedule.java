@@ -29,6 +29,13 @@ public class Schedule extends BaseDocument {
     // 경기장 및 경기 연결 (선택)
     private String stadiumId;         // 경기장 ID (Stadium.id 참조)
     private String gameId;             // 경기 ID (Game.id 참조, 직관일지 링크용)
+
+    // 관리자 경기 일정 계약(기존 공개 필드에 대한 additive metadata)
+    private String season;
+    private String opponent;
+    private Boolean isHome;
+    private String extraHome;
+    private Boolean specialGame;
     
     // 노출 여부
     private Boolean isActive;

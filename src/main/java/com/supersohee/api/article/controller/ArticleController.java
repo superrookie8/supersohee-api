@@ -7,10 +7,20 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
 
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+
+import com.supersohee.api.article.error.ArticleApiException;
+
 @RestController
 @RequestMapping("/api/articles")
 @RequiredArgsConstructor
 public class ArticleController {
+
+    private static final Set<String> SUPPORTED_SOURCES = Set.of("jumpball", "rookie");
+    private static final int MAX_PAGE_SIZE = 100;
 
     private final ArticleService articleService;
 
@@ -28,7 +38,21 @@ public class ArticleController {
         @PathVariable String source,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "10") int limit) {
-        ArticlePageResponse response = articleService.getBySource(source, page, limit);
+        String normalizedSource = source.trim().toLowerCase(Locale.ROOT);
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
+        if (!SUPPORTED_SOURCES.contains(normalizedSource)) {
+            fieldErrors.put("source", "source must be jumpball or rookie.");
+        }
+        if (page < 0) {
+            fieldErrors.put("page", "page must be non-negative.");
+        }
+        if (limit < 1 || limit > MAX_PAGE_SIZE) {
+            fieldErrors.put("limit", "limit must be between 1 and 100.");
+        }
+        if (!fieldErrors.isEmpty()) {
+            throw ArticleApiException.validation(fieldErrors);
+        }
+        ArticlePageResponse response = articleService.getBySource(normalizedSource, page, limit);
         return ResponseEntity.ok(response);
     }
 }

@@ -1,5 +1,6 @@
 package com.supersohee.api.playerstat.service;
 
+import com.supersohee.api.admin.error.AdminApiException;
 import com.supersohee.api.playerstat.domain.PlayerStat;
 import com.supersohee.api.playerstat.dto.PlayerStatRequest;
 import com.supersohee.api.playerstat.repository.PlayerStatRepository;
@@ -38,7 +39,7 @@ public class PlayerStatService {
         if (request.getSeason() != null) {
             Optional<PlayerStat> existing = playerStatRepository.findBySeason(request.getSeason());
             if (existing.isPresent()) {
-                throw new RuntimeException("이미 해당 시즌의 스탯이 존재합니다: " + request.getSeason());
+                throw AdminApiException.conflict("A player stat already exists for this season.");
             }
         }
 
@@ -80,11 +81,18 @@ public class PlayerStatService {
         return playerStatRepository.save(playerStat);
     }
 
+    @Transactional
+    public PlayerStat upsertPlayerStat(PlayerStatRequest request) {
+        return playerStatRepository.findBySeason(request.getSeason())
+                .map(existing -> updatePlayerStat(existing.getId(), request))
+                .orElseGet(() -> createPlayerStat(request));
+    }
+
     // 스탯 수정 (부분 업데이트 지원)
     @Transactional
     public PlayerStat updatePlayerStat(String id, PlayerStatRequest request) {
         PlayerStat playerStat = playerStatRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("스탯을 찾을 수 없습니다"));
+                .orElseThrow(() -> AdminApiException.notFound("Player stat"));
 
         // 부분 업데이트: request에 있는 필드만 업데이트
         PlayerStat.PlayerStatBuilder builder = playerStat.toBuilder();
@@ -94,7 +102,7 @@ public class PlayerStatService {
             if (!request.getSeason().equals(playerStat.getSeason())) {
                 Optional<PlayerStat> existing = playerStatRepository.findBySeason(request.getSeason());
                 if (existing.isPresent() && !existing.get().getId().equals(id)) {
-                    throw new RuntimeException("이미 해당 시즌의 스탯이 존재합니다: " + request.getSeason());
+                    throw AdminApiException.conflict("A player stat already exists for this season.");
                 }
             }
             builder.season(request.getSeason());
@@ -169,7 +177,7 @@ public class PlayerStatService {
     @Transactional
     public void deletePlayerStat(String id) {
         PlayerStat playerStat = playerStatRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("스탯을 찾을 수 없습니다"));
+                .orElseThrow(() -> AdminApiException.notFound("Player stat"));
         playerStatRepository.delete(playerStat);
     }
 }

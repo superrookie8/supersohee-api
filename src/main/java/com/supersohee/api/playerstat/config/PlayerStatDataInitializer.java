@@ -4,9 +4,11 @@ import com.supersohee.api.playerstat.domain.PlayerStat;
 import com.supersohee.api.playerstat.repository.PlayerStatRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnProperty(prefix = "app.seed", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class PlayerStatDataInitializer {
 

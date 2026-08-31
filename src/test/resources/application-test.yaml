@@ -1,0 +1,41 @@
+spring:
+  data:
+    mongodb:
+      uri: mongodb://127.0.0.1:27017/supersohee_test
+      database: supersohee_test
+jwt:
+  secret: supersohee-test-secret-is-long-enough-for-hs256-only
+  expiration: 3600000
+  issuer: supersohee-api-test
+  audience:
+    user: supersohee-web-test
+    admin: supersohee-admin-test
+
+admin:
+  username: test-admin
+  password: test-admin-password
+
+app:
+  frontend:
+    url: http://127.0.0.1:3000
+  seed:
+    enabled: false
+  article-index:
+    enabled: false
+
+cloudflare:
+  r2:
+    endpoint: http://127.0.0.1:9000
+    access-key-id: test-r2-access-key
+    secret-access-key: test-r2-secret-key
+    bucket-name: test-bucket
+    presigned-url-expiration: 60
+
+google:
+  auth:
+    client-id: test-google-client
+    exchange-key: test-exchange-key-that-is-at-least-thirty-two-bytes
+
+article:
+  import:
+    key: test-article-import-key-that-is-at-least-thirty-two-bytes

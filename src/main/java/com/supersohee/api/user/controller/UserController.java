@@ -29,7 +29,7 @@ public class UserController {
                                 request.getNickname());
 
                 // JWT 토큰 생성
-                String token = jwtUtil.generateToken(user.getId());
+                String token = jwtUtil.generateUserToken(user.getId());
 
                 return ResponseEntity.ok(new LoginResponse(
                                 token,
@@ -46,7 +46,7 @@ public class UserController {
                                 request.getPassword());
 
                 // JWT 토큰 생성
-                String token = jwtUtil.generateToken(user.getId());
+                String token = jwtUtil.generateUserToken(user.getId());
 
                 return ResponseEntity.ok(new LoginResponse(
                                 token,

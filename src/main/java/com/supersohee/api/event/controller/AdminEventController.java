@@ -1,19 +1,32 @@
 package com.supersohee.api.event.controller;
 
+import com.supersohee.api.admin.error.AdminApiException;
 import com.supersohee.api.event.domain.Event;
 import com.supersohee.api.event.dto.EventDetailsResponse;
+import com.supersohee.api.event.dto.AdminEventOrderRequest;
+import com.supersohee.api.event.dto.AdminEventOrderResponse;
 import com.supersohee.api.event.service.EventService;
 import com.supersohee.api.image.service.ImageUploadService;
+import com.supersohee.api.image.service.ImageValidationException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/admin/events")
@@ -23,252 +36,161 @@ public class AdminEventController {
     private final EventService eventService;
     private final ImageUploadService imageUploadService;
 
-    // 이벤트 생성
-    @PostMapping
-    public ResponseEntity<Map<String, Object>> createEvent(
-            @AuthenticationPrincipal String userId,
-            @RequestParam("title") String title,
-            @RequestParam(value = "url", required = false) String url,
-            @RequestParam(value = "description", required = false) String description,
-            @RequestParam(value = "check_1", required = false) String check1,
-            @RequestParam(value = "check_2", required = false) String check2,
-            @RequestParam(value = "check_3", required = false) String check3,
-            @RequestParam(value = "photos", required = false) List<MultipartFile> photos,
-            @RequestParam(value = "isActive", defaultValue = "true") Boolean isActive) {
-        
-        // 어드민 권한 체크
-        if (!"admin".equals(userId)) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "어드민 권한이 필요합니다");
-            return ResponseEntity.status(403).body(new HashMap<>(error));
-        }
-        
-        try {
-            // 이미지 업로드 (있는 경우) - 이벤트 이미지는 event/ 경로로 저장
-            List<String> photoKeys = null;
-            if (photos != null && !photos.isEmpty()) {
-                photoKeys = imageUploadService.uploadEventImages(photos);
-            }
-
-            // 이벤트 생성
-            Event event = eventService.createEvent(
-                    title,
-                    url,
-                    description,
-                    check1,
-                    check2,
-                    check3,
-                    photoKeys,
-                    isActive
-            );
-
-            // 응답 생성 (상세 정보 포함)
-            EventDetailsResponse response = EventDetailsResponse.from(event);
-            if (photoKeys != null && !photoKeys.isEmpty()) {
-                List<String> presignedUrls = imageUploadService.convertKeysToPresignedUrls(photoKeys);
-                response = response.toBuilder()
-                        .photos(presignedUrls)
-                        .photoKeys(photoKeys)
-                        .build();
-            }
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("message", "이벤트가 생성되었습니다");
-            result.put("event", response);
-
-            return ResponseEntity.ok(result);
-        } catch (IOException e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", "이미지 업로드 실패: " + e.getMessage());
-            return ResponseEntity.badRequest().body(error);
-        } catch (IllegalArgumentException e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.badRequest().body(error);
-        } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", "이벤트 생성 중 오류 발생: " + e.getMessage());
-            return ResponseEntity.status(500).body(error);
-        }
-    }
-
-    // 이벤트 수정
-    @PutMapping("/{eventId}")
-    public ResponseEntity<Map<String, Object>> updateEvent(
-            @AuthenticationPrincipal String userId,
-            @PathVariable String eventId,
-            @RequestParam(value = "title", required = false) String title,
-            @RequestParam(value = "url", required = false) String url,
-            @RequestParam(value = "description", required = false) String description,
-            @RequestParam(value = "check_1", required = false) String check1,
-            @RequestParam(value = "check_2", required = false) String check2,
-            @RequestParam(value = "check_3", required = false) String check3,
-            @RequestParam(value = "photos", required = false) List<MultipartFile> photos,
-            @RequestParam(value = "isActive", required = false) Boolean isActive) {
-        
-        // 어드민 권한 체크
-        if (!"admin".equals(userId)) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "어드민 권한이 필요합니다");
-            return ResponseEntity.status(403).body(new HashMap<>(error));
-        }
-        
-        try {
-            // 이미지 업로드 (새로 추가된 경우) - 이벤트 이미지는 event/ 경로로 저장
-            List<String> newPhotoKeys = null;
-            if (photos != null && !photos.isEmpty()) {
-                newPhotoKeys = imageUploadService.uploadEventImages(photos);
-            }
-
-            // 이벤트 수정
-            Event event = eventService.updateEvent(
-                    eventId,
-                    title,
-                    url,
-                    description,
-                    check1,
-                    check2,
-                    check3,
-                    newPhotoKeys,
-                    isActive
-            );
-
-            // 응답 생성
-            EventDetailsResponse response = EventDetailsResponse.from(event);
-            if (event.getPhotoKeys() != null && !event.getPhotoKeys().isEmpty()) {
-                List<String> presignedUrls = imageUploadService.convertKeysToPresignedUrls(event.getPhotoKeys());
-                response = response.toBuilder()
-                        .photos(presignedUrls)
-                        .photoKeys(event.getPhotoKeys())
-                        .build();
-            }
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("message", "이벤트가 수정되었습니다");
-            result.put("event", response);
-
-            return ResponseEntity.ok(result);
-        } catch (IllegalArgumentException e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.badRequest().body(error);
-        } catch (IOException e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", "이미지 업로드 실패: " + e.getMessage());
-            return ResponseEntity.badRequest().body(error);
-        } catch (RuntimeException e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.badRequest().body(error);
-        } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", "이벤트 수정 중 오류 발생: " + e.getMessage());
-            return ResponseEntity.status(500).body(error);
-        }
-    }
-
-    // 이벤트 사진 개별 삭제 (쿼리 파라미터 방식)
-    @DeleteMapping("/{eventId}/photos")
-    public ResponseEntity<Map<String, Object>> deleteEventPhoto(
-            @AuthenticationPrincipal String userId,
-            @PathVariable String eventId,
-            @RequestParam("photoKey") String photoKey) {
-        
-        // 어드민 권한 체크
-        if (!"admin".equals(userId)) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "어드민 권한이 필요합니다");
-            return ResponseEntity.status(403).body(new HashMap<>(error));
-        }
-        
-        try {
-            // R2에서 이미지 삭제
-            imageUploadService.deleteImage(photoKey);
-            
-            // 이벤트에서 사진 키 제거
-            Event event = eventService.deleteEventPhoto(eventId, photoKey);
-            
-            // 응답 생성
-            EventDetailsResponse response = EventDetailsResponse.from(event);
-            if (event.getPhotoKeys() != null && !event.getPhotoKeys().isEmpty()) {
-                List<String> presignedUrls = imageUploadService.convertKeysToPresignedUrls(event.getPhotoKeys());
-                response = response.toBuilder()
-                        .photos(presignedUrls)
-                        .photoKeys(event.getPhotoKeys())
-                        .build();
-            }
-            
-            Map<String, Object> result = new HashMap<>();
-            result.put("message", "사진이 삭제되었습니다");
-            result.put("event", response);
-            
-            return ResponseEntity.ok(result);
-        } catch (IllegalArgumentException e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.badRequest().body(error);
-        } catch (RuntimeException e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.badRequest().body(error);
-        } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", "사진 삭제 중 오류 발생: " + e.getMessage());
-            return ResponseEntity.status(500).body(error);
-        }
-    }
-
-    // 이벤트 삭제 (isActive = false로 설정)
-    @DeleteMapping("/{eventId}")
-    public ResponseEntity<Map<String, String>> deleteEvent(
-            @AuthenticationPrincipal String userId,
-            @PathVariable String eventId) {
-        
-        // 어드민 권한 체크
-        if (!"admin".equals(userId)) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "어드민 권한이 필요합니다");
-            return ResponseEntity.status(403).body(error);
-        }
-        
-        try {
-            eventService.deleteEvent(eventId);
-            Map<String, String> result = new HashMap<>();
-            result.put("message", "이벤트가 삭제되었습니다");
-            return ResponseEntity.ok(result);
-        } catch (RuntimeException e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.badRequest().body(error);
-        }
-    }
-
-    // 모든 이벤트 조회 (어드민용, 비활성 포함)
     @GetMapping
-    public ResponseEntity<List<EventDetailsResponse>> getAllEvents(
-            @AuthenticationPrincipal String userId) {
-        
-        // 어드민 권한 체크
-        if (!"admin".equals(userId)) {
-            return ResponseEntity.status(403).build();
+    public List<EventDetailsResponse> getAllEvents() {
+        return eventService.findAllEvents().stream().map(this::response).toList();
+    }
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<EventDetailsResponse> createEvent(
+            @RequestParam String title,
+            @RequestParam(required = false) String url,
+            @RequestParam(required = false) String description,
+            @RequestParam(required = false) String check1,
+            @RequestParam(required = false) String check2,
+            @RequestParam(required = false) String check3,
+            @RequestParam(required = false) List<MultipartFile> photos,
+            @RequestParam(defaultValue = "true") Boolean isActive) {
+        if (title == null || title.isBlank()) {
+            throw AdminApiException.badRequest("Event title is required.");
         }
-        
-        List<Event> events = eventService.findAllEvents();
-        List<EventDetailsResponse> responses = events.stream()
-                .map(event -> {
-                    EventDetailsResponse response = EventDetailsResponse.from(event);
-                    if (event.getPhotoKeys() != null && !event.getPhotoKeys().isEmpty()) {
-                        List<String> presignedUrls = imageUploadService
-                                .convertKeysToPresignedUrls(event.getPhotoKeys());
-                        response = response.toBuilder()
-                                .photos(presignedUrls)
-                                .photoKeys(event.getPhotoKeys())
-                                .build();
-                    }
-                    return response;
-                })
-                .toList();
-        
-        return ResponseEntity.ok(responses);
+        try {
+            List<String> photoKeys = photos == null || photos.isEmpty()
+                    ? List.of()
+                    : imageUploadService.uploadEventImages(photos);
+            Event created = eventService.createEvent(
+                    title, url, description, check1, check2, check3, photoKeys, isActive);
+            return ResponseEntity.status(HttpStatus.CREATED).body(response(created));
+        } catch (IOException exception) {
+            throw AdminApiException.validation(
+                    "Event photos could not be uploaded.",
+                    Map.of("photos", "Photo upload could not be completed."));
+        } catch (ImageValidationException exception) {
+            throw AdminApiException.validation(
+                    "Event photo validation failed.",
+                    Map.of("photos", safePhotoValidationMessage(exception.reason())));
+        }
+    }
+
+    @PutMapping("/order")
+    public AdminEventOrderResponse reorderEvents(@Valid @RequestBody AdminEventOrderRequest request) {
+        return eventService.reorderEvents(request.eventIds());
+    }
+
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public EventDetailsResponse updateEvent(
+            @PathVariable String id,
+            @RequestParam(required = false) String title,
+            @RequestParam(required = false) String url,
+            @RequestParam(required = false) String description,
+            @RequestParam(required = false) String check1,
+            @RequestParam(required = false) String check2,
+            @RequestParam(required = false) String check3,
+            @RequestParam(required = false) List<MultipartFile> photos,
+            @RequestParam(required = false) String isActive) {
+        validateEditMetadata(title, isActive);
+        List<String> newPhotoKeys;
+        try {
+            newPhotoKeys = photos == null || photos.isEmpty()
+                    ? List.of()
+                    : imageUploadService.uploadEventImages(photos);
+        } catch (IOException exception) {
+            throw AdminApiException.validation(
+                    "Event photos could not be uploaded.",
+                    Map.of("photos", "Photo upload could not be completed."));
+        } catch (ImageValidationException exception) {
+            throw AdminApiException.validation(
+                    "Event photo validation failed.",
+                    Map.of("photos", safePhotoValidationMessage(exception.reason())));
+        }
+
+        Event updated;
+        try {
+            updated = eventService.updateEvent(
+                    id,
+                    title.trim(),
+                    normalizeOptional(url),
+                    normalizeOptional(description),
+                    normalizeOptional(check1),
+                    normalizeOptional(check2),
+                    normalizeOptional(check3),
+                    newPhotoKeys,
+                    Boolean.valueOf(isActive));
+        } catch (RuntimeException updateFailure) {
+            if (!rollbackNewPhotos(newPhotoKeys)) {
+                throw AdminApiException.storageFailure(
+                        "Event update failed and new photo cleanup was incomplete.");
+            }
+            throw updateFailure;
+        }
+        return response(updated);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteEvent(@PathVariable String id) {
+        eventService.deleteEvent(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/photos")
+    public EventDetailsResponse deleteEventPhoto(
+            @PathVariable String id,
+            @RequestParam String photoKey) {
+        if (photoKey == null || photoKey.isBlank()) {
+            throw AdminApiException.badRequest("photoKey is required.");
+        }
+        Event updated = eventService.deleteEventPhoto(id, photoKey);
+        imageUploadService.deleteImage(photoKey);
+        return response(updated);
+    }
+
+    private EventDetailsResponse response(Event event) {
+        EventDetailsResponse response = EventDetailsResponse.from(event);
+        if (event.getPhotoKeys() == null || event.getPhotoKeys().isEmpty()) {
+            return response;
+        }
+        return response.toBuilder()
+                .photos(imageUploadService.convertKeysToPresignedUrls(event.getPhotoKeys()))
+                .photoKeys(event.getPhotoKeys())
+                .build();
+    }
+
+    private String safePhotoValidationMessage(ImageValidationException.Reason reason) {
+        return switch (reason) {
+            case MISSING_FILE -> "Each photo must contain data.";
+            case TOO_LARGE -> "Each photo must be 5 MiB or smaller.";
+            case INVALID_FILENAME -> "Each photo must have a valid filename.";
+            case INVALID_CONTENT -> "Each photo must contain readable image data.";
+            case UNSUPPORTED_FORMAT -> "Photos must use jpg, jpeg, png, gif, or webp format.";
+        };
+    }
+
+    private void validateEditMetadata(String title, String isActive) {
+        if (title == null || title.isBlank()) {
+            throw AdminApiException.validation(
+                    "Event validation failed.",
+                    Map.of("title", "Event title is required."));
+        }
+        if (!"true".equalsIgnoreCase(isActive) && !"false".equalsIgnoreCase(isActive)) {
+            throw AdminApiException.validation(
+                    "Event validation failed.",
+                    Map.of("isActive", "isActive must be true or false."));
+        }
+    }
+
+    private String normalizeOptional(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private boolean rollbackNewPhotos(List<String> newPhotoKeys) {
+        boolean complete = true;
+        for (String key : newPhotoKeys) {
+            try {
+                imageUploadService.deleteImage(key);
+            } catch (RuntimeException cleanupFailure) {
+                complete = false;
+            }
+        }
+        return complete;
     }
 }

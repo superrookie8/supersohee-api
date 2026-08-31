@@ -1,5 +1,6 @@
 package com.supersohee.api.image.service;
 
+import com.supersohee.api.image.validation.ImageContentSignatures;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,8 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -42,7 +45,12 @@ public class ImageUploadService {
     private long presignedUrlExpirationSeconds;
 
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-    private static final List<String> ALLOWED_EXTENSIONS = List.of("jpg", "jpeg", "png", "gif", "webp");
+    private static final Map<String, List<String>> ALLOWED_IMAGE_TYPES = Map.of(
+            "jpg", List.of("image/jpeg", "image/jpg"),
+            "jpeg", List.of("image/jpeg", "image/jpg"),
+            "png", List.of("image/png"),
+            "gif", List.of("image/gif"),
+            "webp", List.of("image/webp"));
 
     private S3Client getS3Client() {
         AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKeyId, secretAccessKey);
@@ -67,7 +75,7 @@ public class ImageUploadService {
 
     // 단일 이미지 업로드 (R2 키 반환)
     public String uploadImage(MultipartFile file) throws IOException {
-        validateImage(file);
+        validateImageForUpload(file);
 
         String fileName = generateFileName(file.getOriginalFilename());
         String key = "diary/" + fileName;
@@ -103,7 +111,7 @@ public class ImageUploadService {
 
     // 이벤트 이미지 업로드 (event/ 경로로 저장)
     public String uploadEventImage(MultipartFile file) throws IOException {
-        validateImage(file);
+        validateImageForUpload(file);
 
         String fileName = generateFileName(file.getOriginalFilename());
         String key = "event/" + fileName;
@@ -127,13 +135,24 @@ public class ImageUploadService {
     // 다중 이벤트 이미지 업로드 (event/ 경로로 저장)
     public List<String> uploadEventImages(List<MultipartFile> files) throws IOException {
         List<String> uploadedKeys = new ArrayList<>();
-
         for (MultipartFile file : files) {
-            String key = uploadEventImage(file);
-            uploadedKeys.add(key);
+            validateImageForUpload(file);
         }
-
-        return uploadedKeys;
+        try {
+            for (MultipartFile file : files) {
+                uploadedKeys.add(uploadEventImage(file));
+            }
+            return uploadedKeys;
+        } catch (IOException | RuntimeException uploadFailure) {
+            for (String key : uploadedKeys) {
+                try {
+                    deleteImage(key);
+                } catch (RuntimeException cleanupFailure) {
+                    uploadFailure.addSuppressed(cleanupFailure);
+                }
+            }
+            throw uploadFailure;
+        }
     }
 
     // R2 키에서 서명된 URL 생성 (수정된 부분)
@@ -190,23 +209,38 @@ public class ImageUploadService {
         }
     }
 
-    private void validateImage(MultipartFile file) {
+    void validateImageForUpload(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("이미지 파일이 필요합니다");
+            throw new ImageValidationException(ImageValidationException.Reason.MISSING_FILE);
         }
 
         if (file.getSize() > MAX_FILE_SIZE) {
-            throw new IllegalArgumentException("이미지 크기는 5MB 이하여야 합니다");
+            throw new ImageValidationException(ImageValidationException.Reason.TOO_LARGE);
         }
 
         String originalFilename = file.getOriginalFilename();
-        if (originalFilename == null) {
-            throw new IllegalArgumentException("파일명이 없습니다");
+        if (originalFilename == null || originalFilename.isBlank()
+                || originalFilename.contains("/") || originalFilename.contains("\\")
+                || originalFilename.contains("..")) {
+            throw new ImageValidationException(ImageValidationException.Reason.INVALID_FILENAME);
         }
 
-        String extension = getFileExtension(originalFilename).toLowerCase();
-        if (!ALLOWED_EXTENSIONS.contains(extension)) {
-            throw new IllegalArgumentException("지원하는 이미지 형식: jpg, jpeg, png, gif, webp");
+        String extension = getFileExtension(originalFilename).toLowerCase(Locale.ROOT);
+        String contentType = file.getContentType() == null
+                ? ""
+                : file.getContentType().split(";", 2)[0].trim().toLowerCase(Locale.ROOT);
+        List<String> allowedContentTypes = ALLOWED_IMAGE_TYPES.get(extension);
+        if (allowedContentTypes == null || !allowedContentTypes.contains(contentType)) {
+            throw new ImageValidationException(ImageValidationException.Reason.UNSUPPORTED_FORMAT);
+        }
+        if ("image/webp".equals(contentType)) {
+            try (java.io.InputStream input = file.getInputStream()) {
+                if (!ImageContentSignatures.isWebp(input.readNBytes(12))) {
+                    throw new ImageValidationException(ImageValidationException.Reason.UNSUPPORTED_FORMAT);
+                }
+            } catch (IOException exception) {
+                throw new ImageValidationException(ImageValidationException.Reason.INVALID_CONTENT);
+            }
         }
     }
 
