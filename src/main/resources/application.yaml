@@ -36,6 +36,18 @@ app:
   frontend:
     url: ${FRONTEND_URL:http://localhost:3000}
 
+# 운영 오류 Slack 알림. Webhook은 비밀 환경 변수로만 주입하고 기본값은 비활성화한다.
+alerts:
+  slack:
+    enabled: ${SLACK_ERROR_ALERTS_ENABLED:false}
+    webhook-url: ${SLACK_ERROR_WEBHOOK_URL:}
+    environment: ${SLACK_ERROR_ENVIRONMENT:${SPRING_PROFILES_ACTIVE:unknown}}
+    timeout: ${SLACK_ERROR_TIMEOUT_MS:2000}ms
+    dedupe-window: ${SLACK_ERROR_DEDUPE_WINDOW_SECONDS:300}s
+    max-per-minute: ${SLACK_ERROR_MAX_PER_MINUTE:10}
+    cache-size: ${SLACK_ERROR_CACHE_SIZE:500}
+    queue-capacity: ${SLACK_ERROR_QUEUE_CAPACITY:100}
+
 # Cloudflare R2 설정 (프로파일별로 오버라이드)
 cloudflare:
   r2:
