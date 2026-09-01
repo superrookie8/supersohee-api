@@ -23,6 +23,8 @@ public class ScheduleResponse {
     private Boolean isActive;
 
     private String opponent;
+    /** 시즌(YYYY-YYYY). season 필드가 없는 과거 문서는 경기일로 유추한다. */
+    private String season;
     private Boolean isHome;
     private Boolean specialGame;
     
@@ -42,6 +44,7 @@ public class ScheduleResponse {
                 .url(schedule.getUrl())
                 .isActive(schedule.getIsActive())
                 .opponent(schedule.getOpponent() != null ? schedule.getOpponent() : schedule.getTitle())
+                .season(schedule.resolveSeason())
                 .isHome(schedule.resolveIsHome())
                 .specialGame(schedule.getSpecialGame())
                 .createdAt(schedule.getCreatedAt())
