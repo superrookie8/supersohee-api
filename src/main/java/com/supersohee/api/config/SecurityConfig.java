@@ -104,6 +104,8 @@ public class SecurityConfig {
                                                 .requestMatchers("/error").permitAll()
                                                 // NextAuth server-to-server Google ID token exchange
                                                 .requestMatchers(HttpMethod.POST, "/api/auth/google/exchange").permitAll()
+                                                // 공유키(X-Supersohee-Exchange-Key)로 보호된다. Google과 동일 계약.
+                                                .requestMatchers(HttpMethod.POST, "/api/auth/kakao/exchange").permitAll()
                                                 // Server-to-server crawler import; a pre-auth filter verifies its dedicated key.
                                                 .requestMatchers(HttpMethod.POST, "/api/admin/articles/import").permitAll()
                                                 // 회원가입/로그인 엔드포인트

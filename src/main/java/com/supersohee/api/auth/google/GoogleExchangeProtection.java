@@ -78,23 +78,30 @@ public class GoogleExchangeProtection {
         this.clock = clock;
     }
 
-    public GoogleExchangeResponse execute(
+    /**
+     * provider와 무관한 교환 봉투다. 응답 타입만 provider별로 달라 제네릭으로 둔다.
+     *
+     * 캐시된 응답을 T로 캐스팅하는 것은 안전하다. 같은 멱등성 키가 다른 provider에
+     * 재사용되면 토큰 해시가 달라 begin()이 idempotencyConflict로 먼저 막는다.
+     */
+    @SuppressWarnings("unchecked")
+    public <T> T execute(
             String presentedExchangeKey,
             String idempotencyKey,
             String idToken,
-            Supplier<GoogleExchangeResponse> exchange) {
+            Supplier<T> exchange) {
         authenticate(presentedExchangeKey);
         validateRequest(idempotencyKey, idToken);
 
         String idempotencyHash = fingerprint(idempotencyKey);
         String tokenHash = fingerprint(idToken);
-        GoogleExchangeResponse cached = begin(idempotencyHash, tokenHash);
+        Object cached = begin(idempotencyHash, tokenHash);
         if (cached != null) {
-            return cached;
+            return (T) cached;
         }
 
         try {
-            GoogleExchangeResponse response = exchange.get();
+            T response = exchange.get();
             complete(idempotencyHash, tokenHash, response);
             return response;
         } catch (RuntimeException e) {
@@ -121,7 +128,7 @@ public class GoogleExchangeProtection {
         }
     }
 
-    private synchronized GoogleExchangeResponse begin(String idempotencyHash, String tokenHash) {
+    private synchronized Object begin(String idempotencyHash, String tokenHash) {
         Instant now = clock.instant();
         cleanup(now);
 
@@ -152,7 +159,7 @@ public class GoogleExchangeProtection {
     private synchronized void complete(
             String idempotencyHash,
             String tokenHash,
-            GoogleExchangeResponse response) {
+            Object response) {
         IdempotencyEntry entry = idempotencyEntries.get(idempotencyHash);
         if (entry != null && entry.tokenHash().equals(tokenHash)) {
             idempotencyEntries.put(
@@ -208,7 +215,7 @@ public class GoogleExchangeProtection {
 
     private record IdempotencyEntry(
             String tokenHash,
-            GoogleExchangeResponse response,
+            Object response,
             Instant expiresAt) {
     }
 

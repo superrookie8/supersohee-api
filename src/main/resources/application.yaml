@@ -25,6 +25,12 @@ jwt:
   secret: ${JWT_SECRET:your-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm}
   expiration: 86400000 # 24시간 (밀리초)
 
+# 카카오 로그인(OIDC). client-id가 비어 있으면 provider 자체를 등록하지 않는다.
+# 값은 라이브 discovery에서 확인: https://kauth.kakao.com/.well-known/openid-configuration
+kakao:
+  auth:
+    client-id: ${KAKAO_CLIENT_ID:}
+
 # 앱 설정
 app:
   frontend:
