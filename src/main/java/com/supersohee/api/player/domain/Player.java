@@ -17,7 +17,8 @@ public class Player {
 
     private String name;
     private String team;
-    private Integer jerseyNumber;
+    private Integer jerseyNumber;              // 소속팀(BNK) 등번호
+    private Integer nationalTeamJerseyNumber;  // 국가대표팀 등번호 (없으면 null)
     private String position;
     private String height; // 171cm
     private List<String> nickname; // ["슈퍼소닉", "소히힛", "발발이", "히쏘", "이파마"]

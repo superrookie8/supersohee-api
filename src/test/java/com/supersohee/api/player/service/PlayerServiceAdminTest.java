@@ -22,10 +22,11 @@ class PlayerServiceAdminTest {
         when(repository.save(any(Player.class))).thenAnswer(invocation -> invocation.getArgument(0, Player.class));
 
         Player result = service.updateSohee(new AdminProfileRequest(
-                "이소희", "BNK 썸", "G", 6, "171cm", List.of("소히"), "빠른 가드", null));
+                "이소희", "BNK 썸", "G", 6, 9, "171cm", List.of("소히"), "빠른 가드", null));
 
         assertThat(result.getId()).isEqualTo("player-1");
         assertThat(result.getJerseyNumber()).isEqualTo(6);
+        assertThat(result.getNationalTeamJerseyNumber()).isEqualTo(9);
         assertThat(result.getNickname()).containsExactly("소히");
     }
 }

@@ -28,6 +28,7 @@ public class PlayerDataInitializer {
                 .name("이소희")
                 .team("BNK SUM")
                 .jerseyNumber(6)
+                .nationalTeamJerseyNumber(9)
                 .position("가드 / 듀얼가드 (PG,SG)")
                 .height("171cm")
                 .nickname(Arrays.asList("슈퍼소닉", "소히힛", "발발이", "히쏘", "이파마"))

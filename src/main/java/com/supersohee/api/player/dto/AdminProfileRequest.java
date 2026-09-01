@@ -13,7 +13,8 @@ public record AdminProfileRequest(
         @NotBlank String name,
         @NotBlank String team,
         @NotBlank String position,
-        @NotNull @Min(6) @Max(6) @JsonAlias("number") Integer jerseyNumber,
+        @NotNull @Min(0) @Max(99) @JsonAlias("number") Integer jerseyNumber,
+        @Min(0) @Max(99) @JsonAlias("nationalNumber") Integer nationalTeamJerseyNumber,
         @NotBlank String height,
         @NotNull @JsonAlias("nickname")
         @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)

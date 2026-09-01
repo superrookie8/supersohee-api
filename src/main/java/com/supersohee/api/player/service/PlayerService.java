@@ -34,6 +34,7 @@ public class PlayerService {
                 .team(request.team())
                 .position(request.position())
                 .jerseyNumber(request.jerseyNumber())
+                .nationalTeamJerseyNumber(request.nationalTeamJerseyNumber())
                 .height(request.height())
                 .nickname(List.copyOf(request.nicknames()))
                 .features(request.features())

@@ -10,6 +10,7 @@ public record AdminProfileResponse(
         String team,
         String position,
         Integer jerseyNumber,
+        Integer nationalTeamJerseyNumber,
         String height,
         List<String> nicknames,
         String features,
@@ -17,7 +18,7 @@ public record AdminProfileResponse(
     public static AdminProfileResponse from(Player player) {
         return new AdminProfileResponse(
                 player.getId(), player.getName(), player.getTeam(), player.getPosition(),
-                player.getJerseyNumber(), player.getHeight(),
+                player.getJerseyNumber(), player.getNationalTeamJerseyNumber(), player.getHeight(),
                 player.getNickname() != null ? player.getNickname() : List.of(),
                 player.getFeatures(), player.getProfileImageUrl());
     }

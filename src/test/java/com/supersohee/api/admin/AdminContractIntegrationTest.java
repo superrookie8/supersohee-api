@@ -87,21 +87,22 @@ class AdminContractIntegrationTest {
     }
 
     @Test
-    void profileSingletonGetAndPutUseCanonicalFieldsAndJerseySix() throws Exception {
+    void profileSingletonGetAndPutUseCanonicalFieldsAndJerseyRange() throws Exception {
         Player player = Player.builder()
                 .id("player-1").name("이소희").team("BNK 썸").position("G")
-                .jerseyNumber(6).height("171cm").nickname(List.of("소히"))
+                .jerseyNumber(6).nationalTeamJerseyNumber(9).height("171cm").nickname(List.of("소히"))
                 .features("빠른 가드").profileImageUrl("https://image.test/profile").build();
         when(playerService.findSohee()).thenReturn(java.util.Optional.of(player));
         when(playerService.updateSohee(any())).thenReturn(player);
         String body = """
-                {"name":"이소희","team":"BNK 썸","position":"G","jerseyNumber":6,"height":"171cm","nicknames":["소히"],"features":"빠른 가드","profileImageUrl":"https://image.test/profile"}
+                {"name":"이소희","team":"BNK 썸","position":"G","jerseyNumber":6,"nationalTeamJerseyNumber":9,"height":"171cm","nicknames":["소히"],"features":"빠른 가드","profileImageUrl":"https://image.test/profile"}
                 """;
 
         mockMvc.perform(get("/api/admin/profile").header(HttpHeaders.AUTHORIZATION, adminBearer()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value("player-1"))
                 .andExpect(jsonPath("$.jerseyNumber").value(6))
+                .andExpect(jsonPath("$.nationalTeamJerseyNumber").value(9))
                 .andExpect(jsonPath("$.nicknames[0]").value("소히"));
         mockMvc.perform(put("/api/admin/profile").contentType(MediaType.APPLICATION_JSON).content(body)
                         .header(HttpHeaders.AUTHORIZATION, adminBearer()))
@@ -115,7 +116,7 @@ class AdminContractIntegrationTest {
                 .andExpect(status().isOk());
 
         mockMvc.perform(put("/api/admin/profile").contentType(MediaType.APPLICATION_JSON)
-                        .content(body.replace("\"jerseyNumber\":6", "\"jerseyNumber\":36"))
+                        .content(body.replace("\"jerseyNumber\":6", "\"jerseyNumber\":136"))
                         .header(HttpHeaders.AUTHORIZATION, adminBearer()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors.jerseyNumber").exists());
