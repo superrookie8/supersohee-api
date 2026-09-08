@@ -20,6 +20,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final com.supersohee.api.user.repository.UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -35,10 +36,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
                 JwtUtil.JwtPrincipal principal = jwtUtil.parseAndValidateToken(token);
+                if (!JwtUtil.ROLE_USER.equals(principal.role())) {
+                    throw new io.jsonwebtoken.JwtException("Legacy administrator tokens are disabled");
+                }
+                var authorities = new java.util.ArrayList<SimpleGrantedAuthority>();
+                authorities.add(new SimpleGrantedAuthority(principal.role()));
+                // Social/member JWTs remain USER tokens. Check the server-owned DB
+                // permission afresh on every admin request, so revocation needs no logout.
+                if (JwtUtil.ROLE_USER.equals(principal.role()) && request.getRequestURI().startsWith("/api/admin/")) {
+                    userRepository.findById(principal.subject())
+                            .filter(user -> "ADMIN".equals(user.getRole()))
+                            .ifPresent(user -> authorities.add(new SimpleGrantedAuthority(JwtUtil.ROLE_ADMIN)));
+                }
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         principal.subject(),
                         null,
-                        List.of(new SimpleGrantedAuthority(principal.role())));
+                        authorities);
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (RuntimeException ignored) {

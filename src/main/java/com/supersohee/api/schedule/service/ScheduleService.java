@@ -56,7 +56,7 @@ public class ScheduleService {
                     }
 
                     // 2. stadiumId가 없으면 location 기반으로 자동 매핑
-                    if (stadium == null) {
+                    if (stadium == null && !schedule.hasCompetitionMetadata()) {
                         stadium = findStadiumByLocation(schedule.getLocation());
                     }
 
@@ -151,7 +151,7 @@ public class ScheduleService {
         return findAllSchedules().stream()
                 .filter(ScheduleService::isNotDeleted)
                 .filter(schedule -> season == null || season.isBlank()
-                        || season.equals(schedule.resolveSeason()))
+                        || season.trim().equals(schedule.resolveSeason()))
                 .sorted(Comparator.comparing(
                         Schedule::getStartDateTime,
                         Comparator.nullsLast(Comparator.naturalOrder())))
@@ -181,20 +181,8 @@ public class ScheduleService {
 
     @Transactional
     public Schedule createAdminSchedule(AdminScheduleRequest request) {
-        Schedule schedule = Schedule.builder()
-                .title(request.opponent())
-                .startDateTime(request.startDateTime())
-                .endDateTime(request.startDateTime().plusHours(2))
-                .location(Boolean.TRUE.equals(request.isHome()) ? "Home" : request.opponent())
-                .type(Boolean.TRUE.equals(request.specialGame()) ? "specialGame" : "game")
-                .color(calendarColor(request.isHome()))
-                .season(request.season())
-                .opponent(request.opponent())
-                .isHome(request.isHome())
-                .extraHome(request.extraHome())
-                .specialGame(Boolean.TRUE.equals(request.specialGame()))
-                .isActive(request.isActive() != null ? request.isActive() : true)
-                .build();
+        Schedule schedule = ScheduleCompetitionPolicy.apply(request, null);
+        validateStadium(schedule, request);
         return scheduleRepository.save(schedule);
     }
 
@@ -202,27 +190,22 @@ public class ScheduleService {
     public Schedule updateAdminSchedule(String id, AdminScheduleRequest request) {
         Schedule existing = scheduleRepository.findById(id)
                 .orElseThrow(() -> AdminApiException.notFound("Schedule"));
-        Schedule updated = Schedule.builder()
-                .id(existing.getId())
-                .title(request.opponent())
-                .description(existing.getDescription())
-                .startDateTime(request.startDateTime())
-                .endDateTime(request.startDateTime().plusHours(2))
-                .location(Boolean.TRUE.equals(request.isHome()) ? "Home" : request.opponent())
-                .type(Boolean.TRUE.equals(request.specialGame()) ? "specialGame" : "game")
-                .color(calendarColor(request.isHome()))
-                .url(existing.getUrl())
-                .stadiumId(existing.getStadiumId())
-                .gameId(existing.getGameId())
-                .season(request.season())
-                .opponent(request.opponent())
-                .isHome(request.isHome())
-                .extraHome(request.extraHome())
-                .specialGame(Boolean.TRUE.equals(request.specialGame()))
-                .isActive(request.isActive() != null ? request.isActive() : existing.getIsActive())
-                .build();
-        updated.setCreatedAt(existing.getCreatedAt());
+        Schedule updated = ScheduleCompetitionPolicy.apply(request, existing);
+        validateStadium(updated, request);
         return scheduleRepository.save(updated);
+    }
+
+    private void validateStadium(Schedule schedule, AdminScheduleRequest request) {
+        if (request.stadiumId() != null && schedule.getStadiumId() != null
+                && stadiumService.findById(schedule.getStadiumId()).isEmpty()) {
+            throw AdminApiException.notFound("Stadium");
+        }
+    }
+
+    public List<Schedule> filterSchedules(List<Schedule> schedules, String season, String competitionKey,
+            String editionLabel, String teamType) {
+        ScheduleCompetitionPolicy.validateFilters(season, competitionKey, editionLabel, teamType);
+        return schedules.stream().filter(s -> ScheduleCompetitionPolicy.matches(s, season, competitionKey, editionLabel, teamType)).toList();
     }
 
     // 어드민용: 스케줄 생성
@@ -324,6 +307,15 @@ public class ScheduleService {
                 .opponent(schedule.getOpponent())
                 .isHome(schedule.getIsHome())
                 .extraHome(schedule.getExtraHome())
+                .competitionKey(schedule.getCompetitionKey())
+                .competitionName(schedule.getCompetitionName())
+                .competitionKind(schedule.getCompetitionKind())
+                .editionLabel(schedule.getEditionLabel())
+                .teamType(schedule.getTeamType())
+                .ourTeamName(schedule.getOurTeamName())
+                .venueType(schedule.getVenueType())
+                .venueName(schedule.getVenueName())
+                .stage(schedule.getStage())
                 .specialGame(schedule.getSpecialGame())
                 .isActive(isActive != null ? isActive : schedule.getIsActive())
                 .build();
@@ -355,6 +347,15 @@ public class ScheduleService {
                 .opponent(schedule.getOpponent())
                 .isHome(schedule.getIsHome())
                 .extraHome(schedule.getExtraHome())
+                .competitionKey(schedule.getCompetitionKey())
+                .competitionName(schedule.getCompetitionName())
+                .competitionKind(schedule.getCompetitionKind())
+                .editionLabel(schedule.getEditionLabel())
+                .teamType(schedule.getTeamType())
+                .ourTeamName(schedule.getOurTeamName())
+                .venueType(schedule.getVenueType())
+                .venueName(schedule.getVenueName())
+                .stage(schedule.getStage())
                 .specialGame(schedule.getSpecialGame())
                 .isActive(false)
                 .build();

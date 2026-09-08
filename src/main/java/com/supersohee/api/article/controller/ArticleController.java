@@ -19,7 +19,7 @@ import com.supersohee.api.article.error.ArticleApiException;
 @RequiredArgsConstructor
 public class ArticleController {
 
-    private static final Set<String> SUPPORTED_SOURCES = Set.of("jumpball", "rookie");
+    private static final Set<String> SUPPORTED_SOURCES = Set.of("jumpball", "rookie", "other");
     private static final int MAX_PAGE_SIZE = 100;
 
     private final ArticleService articleService;
@@ -41,7 +41,7 @@ public class ArticleController {
         String normalizedSource = source.trim().toLowerCase(Locale.ROOT);
         Map<String, String> fieldErrors = new LinkedHashMap<>();
         if (!SUPPORTED_SOURCES.contains(normalizedSource)) {
-            fieldErrors.put("source", "source must be jumpball or rookie.");
+            fieldErrors.put("source", "source must be jumpball, rookie or other.");
         }
         if (page < 0) {
             fieldErrors.put("page", "page must be non-negative.");

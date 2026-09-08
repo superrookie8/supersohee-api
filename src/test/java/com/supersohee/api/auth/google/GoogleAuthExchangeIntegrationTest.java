@@ -27,6 +27,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class GoogleAuthExchangeIntegrationTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    com.supersohee.api.user.repository.UserRepository userRepository;
+
 
     private static final String EXCHANGE_KEY = "test-exchange-key-that-is-at-least-thirty-two-bytes";
 

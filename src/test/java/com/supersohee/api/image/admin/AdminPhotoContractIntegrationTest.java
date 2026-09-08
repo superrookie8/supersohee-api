@@ -33,6 +33,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class AdminPhotoContractIntegrationTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    com.supersohee.api.user.repository.UserRepository userRepository;
+
     private static final String PHOTO_ID = "507f1f77bcf86cd799439011";
 
     @Autowired MockMvc mockMvc;
@@ -120,7 +123,9 @@ class AdminPhotoContractIntegrationTest {
     }
 
     private String adminBearer() {
-        return "Bearer " + jwtUtil.generateAdminToken("admin");
+        when(userRepository.findById("admin-member")).thenReturn(java.util.Optional.of(
+                com.supersohee.api.user.domain.User.builder().id("admin-member").role("ADMIN").build()));
+        return "Bearer " + jwtUtil.generateUserToken("admin-member");
     }
 
     private String userBearer() {

@@ -64,13 +64,23 @@ class ArticlePublicContractIntegrationTest {
     }
 
     @Test
+    void otherSourceIsPublicAndUsesSamePaginationContract() throws Exception {
+        when(articleService.getBySource("other", 0, 10)).thenReturn(ArticlePageResponse.builder()
+                .articles(List.of()).total(0).page(0).limit(10).totalPages(0)
+                .hasNext(false).hasPrevious(false).build());
+        mockMvc.perform(get("/api/articles/other")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.articles").isArray()).andExpect(jsonPath("$.total").value(0));
+        verify(articleService).getBySource("other", 0, 10);
+    }
+
+    @Test
     void unsupportedSourceAndPaginationBoundsReturnSafeFieldErrors() throws Exception {
         mockMvc.perform(get("/api/articles/unknown").queryParam("page", "-1").queryParam("limit", "101"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("ARTICLE_VALIDATION_FAILED"))
                 .andExpect(jsonPath("$.message").value("Article request validation failed."))
                 .andExpect(jsonPath("$.traceId").isNotEmpty())
-                .andExpect(jsonPath("$.fieldErrors.source").value("source must be jumpball or rookie."))
+                .andExpect(jsonPath("$.fieldErrors.source").value("source must be jumpball, rookie or other."))
                 .andExpect(jsonPath("$.fieldErrors.page").value("page must be non-negative."))
                 .andExpect(jsonPath("$.fieldErrors.limit").value("limit must be between 1 and 100."));
 

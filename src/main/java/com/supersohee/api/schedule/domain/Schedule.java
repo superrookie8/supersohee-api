@@ -8,7 +8,7 @@ import com.supersohee.api.common.BaseDocument;
 import java.time.LocalDateTime;
 
 @Getter
-@Builder
+@Builder(toBuilder = true)
 @AllArgsConstructor
 @NoArgsConstructor
 @Document(collection = "schedules")
@@ -32,6 +32,16 @@ public class Schedule extends BaseDocument {
 
     // 관리자 경기 일정 계약(기존 공개 필드에 대한 additive metadata)
     private String season;
+    private String competitionKey;
+    private String competitionName;
+    private String competitionKind;
+    private String editionLabel;
+    private String teamType;
+    private String ourTeamName;
+    private String venueType;
+    private String venueName;
+    private String stage;
+
     private String opponent;
     private Boolean isHome;
     private String extraHome;
@@ -50,7 +60,7 @@ public class Schedule extends BaseDocument {
         if (season != null && !season.isBlank()) {
             return season;
         }
-        if (startDateTime == null) {
+        if (hasCompetitionMetadata() || startDateTime == null) {
             return null;
         }
         int year = startDateTime.getYear();
@@ -68,4 +78,15 @@ public class Schedule extends BaseDocument {
     public boolean resolveSpecialGame() {
         return specialGame != null ? specialGame : "specialGame".equals(type);
     }
+    public boolean hasCompetitionMetadata() { return competitionKey != null && !competitionKey.isBlank(); }
+    private boolean legacyMatch() { return "game".equals(type) || "specialGame".equals(type); }
+    public String resolveCompetitionKey() { return hasCompetitionMetadata() ? competitionKey : legacyMatch() ? resolveSpecialGame() ? "legacy-special" : "wkbl" : null; }
+    public String resolveCompetitionName() { return hasCompetitionMetadata() ? competitionName : legacyMatch() ? resolveSpecialGame() ? "미분류 특별경기" : "WKBL" : null; }
+    public String resolveCompetitionKind() { return hasCompetitionMetadata() ? competitionKind : legacyMatch() ? resolveSpecialGame() ? "other" : "league" : null; }
+    public String resolveEditionLabel() { return hasCompetitionMetadata() ? editionLabel : legacyMatch() ? resolveSeason() : null; }
+    public String resolveTeamType() { return hasCompetitionMetadata() ? teamType : legacyMatch() && !resolveSpecialGame() ? "club" : null; }
+    public String resolveOurTeamName() { return hasCompetitionMetadata() ? ourTeamName : legacyMatch() && !resolveSpecialGame() ? "BNK 썸" : null; }
+    public String resolveVenueType() { return hasCompetitionMetadata() ? venueType : legacyMatch() ? resolveIsHome() ? "home" : "away" : null; }
+    public String resolveVenueName() { return hasCompetitionMetadata() ? venueName : extraHome != null && !extraHome.isBlank() ? extraHome : "Home".equals(location) ? "부산 사직실내체육관" : location; }
+
 }

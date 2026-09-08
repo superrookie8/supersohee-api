@@ -24,6 +24,7 @@ import java.util.UUID;
 @RestControllerAdvice(assignableTypes = {
         AdminEventController.class,
         AdminScheduleController.class,
+        com.supersohee.api.schedule.controller.ScheduleController.class,
         AdminPlayerStatController.class,
         AdminProfileController.class,
         AdminGuestbookController.class,

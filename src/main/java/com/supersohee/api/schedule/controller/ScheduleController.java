@@ -24,9 +24,16 @@ public class ScheduleController {
     @GetMapping
     public ResponseEntity<List<ScheduleResponse>> getSchedules(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end,
+            @RequestParam(required = false) String season,
+            @RequestParam(required = false) String competitionKey,
+            @RequestParam(required = false) String editionLabel,
+            @RequestParam(required = false) String teamType) {
 
         List<Schedule> schedules = scheduleService.findActiveSchedules(start, end);
+        if (season != null || competitionKey != null || editionLabel != null || teamType != null) {
+            schedules = scheduleService.filterSchedules(schedules, season, competitionKey, editionLabel, teamType);
+        }
         List<ScheduleResponse> responses = schedules.stream()
                 .map(ScheduleResponse::from)
                 .collect(Collectors.toList());

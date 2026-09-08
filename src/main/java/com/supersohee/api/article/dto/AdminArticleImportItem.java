@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
 
 public record AdminArticleImportItem(
-        @NotBlank @Pattern(regexp = "jumpball|rookie") String source,
+        @NotBlank @Pattern(regexp = "jumpball|rookie|other") String source,
         @NotBlank @Size(max = 300) String title,
         @NotBlank @Size(max = 2_000) String url,
         @Size(max = 20_000) String summary,

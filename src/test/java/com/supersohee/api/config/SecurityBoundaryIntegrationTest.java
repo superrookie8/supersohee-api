@@ -15,6 +15,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class SecurityBoundaryIntegrationTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    com.supersohee.api.user.repository.UserRepository userRepository;
+
 
     @Autowired
     private MockMvc mockMvc;
@@ -36,17 +39,17 @@ class SecurityBoundaryIntegrationTest {
     }
 
     @Test
-    void adminTokenPassesCentralRoleCheck() throws Exception {
+    void legacyAdminTokenIsRejectedEvenWhenValidlySigned() throws Exception {
         mockMvc.perform(get("/api/admin/security-boundary-probe")
                         .header(HttpHeaders.AUTHORIZATION, bearer(jwtUtil.generateAdminToken("admin"))))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
     void userApiRejectsAdminToken() throws Exception {
         mockMvc.perform(get("/api/users/me")
                         .header(HttpHeaders.AUTHORIZATION, bearer(jwtUtil.generateAdminToken("admin"))))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     private String bearer(String token) {

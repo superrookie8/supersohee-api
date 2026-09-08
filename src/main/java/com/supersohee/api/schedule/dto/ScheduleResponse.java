@@ -12,6 +12,17 @@ import java.time.LocalDateTime;
 public class ScheduleResponse {
     
     private String id;
+    private String competitionKey;
+    private String competitionName;
+    private String competitionKind;
+    private String editionLabel;
+    private String teamType;
+    private String ourTeamName;
+    private String venueType;
+    private String venueName;
+    private String stage;
+    private String stadiumId;
+
     private String title;
     private String description;
     private LocalDateTime startDateTime;
@@ -34,6 +45,16 @@ public class ScheduleResponse {
     public static ScheduleResponse from(Schedule schedule) {
         return ScheduleResponse.builder()
                 .id(schedule.getId())
+                .competitionKey(schedule.resolveCompetitionKey())
+                .competitionName(schedule.resolveCompetitionName())
+                .competitionKind(schedule.resolveCompetitionKind())
+                .editionLabel(schedule.resolveEditionLabel())
+                .teamType(schedule.resolveTeamType())
+                .ourTeamName(schedule.resolveOurTeamName())
+                .venueType(schedule.resolveVenueType())
+                .venueName(schedule.resolveVenueName())
+                .stage(schedule.getStage())
+                .stadiumId(schedule.getStadiumId())
                 .title(schedule.getTitle())
                 .description(schedule.getDescription())
                 .startDateTime(schedule.getStartDateTime())

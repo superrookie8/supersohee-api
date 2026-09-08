@@ -26,6 +26,10 @@ public class AdminApiException extends RuntimeException {
         this.fieldErrors = Map.copyOf(fieldErrors);
     }
 
+    public static AdminApiException unprocessable(String message, Map<String, String> fields) {
+        return new AdminApiException(HttpStatus.UNPROCESSABLE_ENTITY, "ADMIN_VALIDATION_FAILED", message, fields);
+    }
+
     public static AdminApiException notFound(String resource) {
         return new AdminApiException(HttpStatus.NOT_FOUND, "ADMIN_RESOURCE_NOT_FOUND", resource + " was not found.");
     }

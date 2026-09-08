@@ -19,8 +19,15 @@ public class AdminScheduleController {
     private final ScheduleService scheduleService;
 
     @GetMapping
-    public List<AdminScheduleResponse> getSchedules(@RequestParam(required = false) String season) {
-        return scheduleService.findAdminSchedules(season).stream()
+    public List<AdminScheduleResponse> getSchedules(@RequestParam(required = false) String season,
+            @RequestParam(required = false) String competitionKey,
+            @RequestParam(required = false) String editionLabel,
+            @RequestParam(required = false) String teamType) {
+        var schedules = scheduleService.findAdminSchedules(season);
+        if (competitionKey != null || editionLabel != null || teamType != null || season != null) {
+            schedules = scheduleService.filterSchedules(schedules, season, competitionKey, editionLabel, teamType);
+        }
+        return schedules.stream()
                 .map(AdminScheduleResponse::from)
                 .toList();
     }

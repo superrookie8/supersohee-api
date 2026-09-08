@@ -47,9 +47,9 @@ class ArcadeContractIntegrationTest {
     }
 
     @Test
-    void rankingReceivesTheStringUserIdPrincipalAndAllowsAdminToo() throws Exception {
+    void rankingReceivesUserPrincipalButLegacyAdminTokenIsAnonymous() throws Exception {
         when(arcadeService.getRanking(10, "user-1")).thenReturn(ranking(2));
-        when(arcadeService.getRanking(10, "admin")).thenReturn(ranking(null));
+        when(arcadeService.getRanking(10, null)).thenReturn(ranking(null));
 
         mockMvc.perform(get("/api/arcade/ranking").queryParam("limit", "10")
                         .header(HttpHeaders.AUTHORIZATION, userBearer()))
@@ -60,7 +60,7 @@ class ArcadeContractIntegrationTest {
                 .andExpect(status().isOk());
 
         verify(arcadeService).getRanking(10, "user-1");
-        verify(arcadeService).getRanking(10, "admin");
+        verify(arcadeService).getRanking(10, null);
     }
 
     @Test
@@ -94,8 +94,8 @@ class ArcadeContractIntegrationTest {
                 .andExpect(jsonPath("$.code").value("ARCADE_AUTHENTICATION_REQUIRED"));
         mockMvc.perform(get("/api/arcade/my-score")
                         .header(HttpHeaders.AUTHORIZATION, adminBearer()))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("ARCADE_ACCESS_DENIED"));
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("ARCADE_AUTHENTICATION_REQUIRED"));
     }
 
     @Test

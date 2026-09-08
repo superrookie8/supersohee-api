@@ -15,6 +15,21 @@ public class ScheduleDetailsResponse {
 
     // 기본 스케줄 정보
     private String id;
+    private String season;
+    private String opponent;
+    private Boolean isHome;
+    private Boolean specialGame;
+    private String competitionKey;
+    private String competitionName;
+    private String competitionKind;
+    private String editionLabel;
+    private String teamType;
+    private String ourTeamName;
+    private String venueType;
+    private String venueName;
+    private String stage;
+    private String stadiumId;
+
     private String title;
     private String description;
     private LocalDateTime startDateTime;
@@ -54,6 +69,18 @@ public class ScheduleDetailsResponse {
     public static ScheduleDetailsResponse from(Schedule schedule, Stadium stadium, String gameId) {
         ScheduleDetailsResponse.ScheduleDetailsResponseBuilder builder = ScheduleDetailsResponse.builder()
                 .id(schedule.getId())
+                .competitionKey(schedule.resolveCompetitionKey())
+                .competitionName(schedule.resolveCompetitionName())
+                .competitionKind(schedule.resolveCompetitionKind())
+                .editionLabel(schedule.resolveEditionLabel())
+                .teamType(schedule.resolveTeamType())
+                .ourTeamName(schedule.resolveOurTeamName())
+                .venueType(schedule.resolveVenueType())
+                .venueName(schedule.resolveVenueName())
+                .stage(schedule.getStage())
+                .stadiumId(schedule.getStadiumId())
+                .season(schedule.resolveSeason()).opponent(schedule.getOpponent() != null ? schedule.getOpponent() : schedule.getTitle())
+                .isHome(schedule.resolveIsHome()).specialGame(schedule.resolveSpecialGame())
                 .title(schedule.getTitle())
                 .description(schedule.getDescription())
                 .startDateTime(schedule.getStartDateTime())

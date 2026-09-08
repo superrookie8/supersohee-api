@@ -67,6 +67,7 @@ class AdminContractIntegrationTest {
     @Autowired MockMvc mockMvc;
     @Autowired JwtUtil jwtUtil;
 
+    @MockitoBean com.supersohee.api.user.repository.UserRepository userRepository;
     @MockitoBean EventService eventService;
     @MockitoBean ImageUploadService imageUploadService;
     @MockitoBean ScheduleService scheduleService;
@@ -77,13 +78,13 @@ class AdminContractIntegrationTest {
     @MockitoBean ArticleService articleService;
 
     @Test
-    void existingAdminLoginStillIssuesAdminToken() throws Exception {
+    void legacyStaticLoginIsDisabled() throws Exception {
         mockMvc.perform(post("/api/admin/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"test-admin\",\"password\":\"test-admin-password\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").isNotEmpty())
-                .andExpect(jsonPath("$.role").value("ADMIN"));
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.token").doesNotExist())
+                .andExpect(jsonPath("$.code").value("ADMIN_LEGACY_LOGIN_DISABLED"));
     }
 
     @Test
@@ -515,6 +516,7 @@ class AdminContractIntegrationTest {
     void scheduleCrudAndSeasonContractsAreFlatAndAdditive() throws Exception {
         Schedule schedule = schedule();
         when(scheduleService.findAdminSchedules("2025-2026")).thenReturn(List.of(schedule));
+        when(scheduleService.filterSchedules(anyList(), any(), any(), any(), any())).thenCallRealMethod();
         when(scheduleService.findAdminSeasons()).thenReturn(List.of("2024-2025", "2025-2026"));
         when(scheduleService.createAdminSchedule(any())).thenReturn(schedule);
         when(scheduleService.updateAdminSchedule(eq("schedule-1"), any())).thenReturn(schedule);
@@ -607,8 +609,60 @@ class AdminContractIntegrationTest {
                 .andExpect(jsonPath("$.code").value("ADMIN_ACCESS_DENIED"));
     }
 
+    @Test
+    void batchAndSecurityStatusRequireActualAdministratorBearer() throws Exception {
+        for (String route : List.of("/api/admin/articles/batch", "/api/admin/security/status")) {
+            boolean batch = route.endsWith("batch");
+            for (String bearer : List.of("", userBearer(), "Bearer invalid-fixture")) {
+                var request = batch ? post(route).contentType(MediaType.APPLICATION_JSON).content(articleImportPayload(1)) : get(route);
+                if (!bearer.isEmpty()) request.header(HttpHeaders.AUTHORIZATION, bearer);
+                mockMvc.perform(request).andExpect(bearer.startsWith("Bearer ") && !bearer.equals("Bearer invalid-fixture") ? status().isForbidden() : status().isUnauthorized());
+            }
+        }
+        when(articleService.batchArticles(any())).thenReturn(new AdminArticleImportResponse(1, 1, 0));
+        mockMvc.perform(post("/api/admin/articles/batch").header(HttpHeaders.AUTHORIZATION, adminBearer())
+                        .contentType(MediaType.APPLICATION_JSON).content(articleImportPayload(1)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.created").value(1));
+        mockMvc.perform(get("/api/admin/security/status").header(HttpHeaders.AUTHORIZATION, adminBearer()))
+                .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.checkedAt").isNotEmpty())
+                .andExpect(jsonPath("$.checks[0].status").value("pass"))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("test-admin-password"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("test-admin"))));
+        mockMvc.perform(post("/api/admin/articles/batch").header("X-Article-Import-Key", ARTICLE_IMPORT_KEY)
+                        .contentType(MediaType.APPLICATION_JSON).content(articleImportPayload(1)))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/admin/articles/batch").header(HttpHeaders.AUTHORIZATION, adminBearer())
+                        .contentType(MediaType.APPLICATION_JSON).content(articleImportPayload(201)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void memberSessionUsesCurrentDbAdminRoleAndRevocationTakesEffectImmediately() throws Exception {
+        String sameBearer = userBearer();
+        when(userRepository.findById("user-1"))
+                .thenReturn(java.util.Optional.of(com.supersohee.api.user.domain.User.builder().id("user-1").role("ADMIN").build()))
+                .thenReturn(java.util.Optional.of(com.supersohee.api.user.domain.User.builder().id("user-1").build()))
+                .thenReturn(java.util.Optional.empty());
+        mockMvc.perform(get("/api/admin/security/status").header(HttpHeaders.AUTHORIZATION, sameBearer))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/admin/security/status").header(HttpHeaders.AUTHORIZATION, sameBearer))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/admin/security/status").header(HttpHeaders.AUTHORIZATION, sameBearer))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void memberAdminLookupFailsClosedWhenDatabaseUnavailable() throws Exception {
+        when(userRepository.findById("user-1")).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("fixture unavailable"));
+        mockMvc.perform(get("/api/admin/security/status").header(HttpHeaders.AUTHORIZATION, userBearer()))
+                .andExpect(status().isUnauthorized());
+    }
+
     private String adminBearer() {
-        return "Bearer " + jwtUtil.generateAdminToken("admin");
+        when(userRepository.findById("admin-member")).thenReturn(java.util.Optional.of(
+                com.supersohee.api.user.domain.User.builder().id("admin-member").role("ADMIN").build()));
+        return "Bearer " + jwtUtil.generateUserToken("admin-member");
     }
 
     private String userBearer() {

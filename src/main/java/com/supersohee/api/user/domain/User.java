@@ -31,6 +31,9 @@ public class User extends BaseDocument {
     private String provider; // google
     private String providerId; // google sub (unique)
 
+    // Server-owned permission. Missing role means ordinary member; no signup/profile DTO accepts it.
+    private String role;
+
     private String email;
     private String nickname;
     private String profileImageUrl;
@@ -49,6 +52,7 @@ public class User extends BaseDocument {
                 .id(this.id)
                 .provider(this.provider)
                 .providerId(this.providerId) // 기존 값 유지
+                .role(this.role)
                 .email(email)
                 .nickname(nickname)
                 .profileImageUrl(profileImageUrl)

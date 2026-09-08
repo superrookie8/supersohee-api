@@ -8,6 +8,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 public class CorsConfig {
@@ -20,10 +21,7 @@ public class CorsConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         
         // 허용할 Origin (프론트엔드 URL)
-        configuration.setAllowedOrigins(Arrays.asList(
-            frontendUrl,
-            "http://localhost:3000"  // 개발 환경 (환경 변수에 없을 경우 대비)
-        ));
+        configuration.setAllowedOrigins(List.of(frontendUrl));
         
         // 허용할 HTTP 메서드
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));

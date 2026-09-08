@@ -68,4 +68,29 @@ class SchedulePublicContractIntegrationTest {
 
         verify(scheduleService).findActiveSchedules(null, null);
     }
+    @Test
+    void publicFiltersAndDetailsExposeNationalCompetitionMetadata() throws Exception {
+        Schedule s = Schedule.builder().id("national").type("game").isActive(true)
+                .competitionKey("olympics").competitionName("올림픽").competitionKind("tournament")
+                .editionLabel("2026 연기대회").teamType("national").ourTeamName("대한민국")
+                .venueType("neutral").venueName("체육관").stage("결선")
+                .startDateTime(LocalDateTime.of(2027, 1, 2, 19, 0)).build();
+        when(scheduleService.findActiveSchedules(null, null)).thenReturn(List.of(s));
+        when(scheduleService.filterSchedules(org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).thenCallRealMethod();
+        when(scheduleService.findById("national")).thenReturn(java.util.Optional.of(s));
+        when(scheduleService.findDetailsById("national")).thenReturn(java.util.Optional.of(
+                com.supersohee.api.schedule.dto.ScheduleDetailsResponse.from(s, null, "national")));
+        mockMvc.perform(get("/api/schedules").param("competitionKey", "olympics").param("editionLabel", "2026 연기대회").param("teamType", "national"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].competitionKey").value("olympics"))
+                .andExpect(jsonPath("$[0].ourTeamName").value("대한민국"));
+        mockMvc.perform(get("/api/schedules/national")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.venueType").value("neutral")).andExpect(jsonPath("$.season").value(nullValue()));
+        mockMvc.perform(get("/api/schedules/national/details")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.editionLabel").value("2026 연기대회"))
+                .andExpect(jsonPath("$.stage").value("결선")).andExpect(jsonPath("$.gameId").value("national"));
+        mockMvc.perform(get("/api/schedules").param("teamType", "invalid"))
+                .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.fieldErrors.teamType").exists());
+    }
+
 }

@@ -13,7 +13,17 @@ public record AdminScheduleResponse(
         Boolean isHome,
         String extraHome,
         Boolean specialGame,
-        Boolean isActive) {
+        Boolean isActive,
+        String competitionKey,
+        String competitionName,
+        String competitionKind,
+        String editionLabel,
+        String teamType,
+        String ourTeamName,
+        String venueType,
+        String venueName,
+        String stage,
+        String stadiumId) {
 
     public static AdminScheduleResponse from(Schedule schedule) {
         return new AdminScheduleResponse(
@@ -29,6 +39,16 @@ public record AdminScheduleResponse(
                 schedule.resolveIsHome(),
                 schedule.getExtraHome(),
                 schedule.resolveSpecialGame(),
-                schedule.getIsActive());
+                schedule.getIsActive(),
+                schedule.resolveCompetitionKey(),
+                schedule.resolveCompetitionName(),
+                schedule.resolveCompetitionKind(),
+                schedule.resolveEditionLabel(),
+                schedule.resolveTeamType(),
+                schedule.resolveOurTeamName(),
+                schedule.resolveVenueType(),
+                schedule.resolveVenueName(),
+                schedule.getStage(),
+                schedule.getStadiumId());
     }
 }

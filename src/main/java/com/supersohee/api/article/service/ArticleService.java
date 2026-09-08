@@ -67,7 +67,31 @@ public class ArticleService {
                 .build());
     }
 
+    public AdminArticleImportResponse batchArticles(AdminArticleImportRequest request) {
+        // Validate the entire request before the first write. Storage failure may still
+        // leave a partial batch; insert-only retries safely resume those writes.
+        var normalized = request.articles().stream().map(ArticleUrlPolicy::normalize).toList();
+        int existing = 0;
+        int created = 0;
+        for (var item : normalized) {
+            Query legacy = Query.query(Criteria.where("source").is(item.source())
+                    .and("url").regex(ArticleUrlPolicy.legacyPattern(item.url())));
+            if (mongoOperations.exists(legacy, Article.class)) {
+                existing++;
+                continue;
+            }
+            var result = persistArticles(new AdminArticleImportRequest(java.util.List.of(item)));
+            existing += result.existing();
+            created += result.created();
+        }
+        return new AdminArticleImportResponse(normalized.size(), created, existing);
+    }
+
     public AdminArticleImportResponse importArticles(AdminArticleImportRequest request) {
+        return batchArticles(request);
+    }
+
+    private AdminArticleImportResponse persistArticles(AdminArticleImportRequest request) {
         int created = 0;
         int existing = 0;
         for (AdminArticleImportItem item : request.articles()) {

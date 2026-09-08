@@ -41,7 +41,7 @@ class ArticleServiceAdminTest {
                 .thenReturn(UpdateResult.acknowledged(1, 0L, null));
         AdminArticleImportRequest request = new AdminArticleImportRequest(List.of(
                 new AdminArticleImportItem(
-                        "jumpball", "기사", "https://jumpball.test/1", "요약", null,
+                        "jumpball", "기사", "https://jumpball.co.kr/1", "요약", null,
                         LocalDateTime.of(2026, 1, 1, 12, 0))));
 
         AdminArticleImportResponse first = service.importArticles(request);
@@ -61,7 +61,7 @@ class ArticleServiceAdminTest {
         ArticleService service = new ArticleService(repository, mongoOperations);
         when(mongoOperations.upsert(any(Query.class), any(Update.class), eq(Article.class)))
                 .thenThrow(new DuplicateKeyException("race fixture"));
-        when(mongoOperations.exists(any(Query.class), eq(Article.class))).thenReturn(true);
+        when(mongoOperations.exists(any(Query.class), eq(Article.class))).thenReturn(false, true);
 
         AdminArticleImportResponse response = service.importArticles(singleArticleRequest());
 
@@ -90,7 +90,7 @@ class ArticleServiceAdminTest {
         AdminArticleImportRequest twoArticles = new AdminArticleImportRequest(List.of(
                 singleArticleRequest().articles().get(0),
                 new AdminArticleImportItem(
-                        "rookie", "두 번째 기사", "https://rookie.test/2", null, null,
+                        "rookie", "두 번째 기사", "https://www.rookie.co.kr/2", null, null,
                         LocalDateTime.of(2026, 1, 2, 12, 0))));
 
         assertThatExceptionOfType(DataAccessResourceFailureException.class)
@@ -131,7 +131,7 @@ class ArticleServiceAdminTest {
 
     private AdminArticleImportRequest singleArticleRequest() {
         return new AdminArticleImportRequest(List.of(new AdminArticleImportItem(
-                "jumpball", "기사", "https://jumpball.test/1", "요약", null,
+                "jumpball", "기사", "https://jumpball.co.kr/1", "요약", null,
                 LocalDateTime.of(2026, 1, 1, 12, 0))));
     }
 }

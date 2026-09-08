@@ -34,6 +34,11 @@ public class AdminArticleController {
                 .body(AdminArticleResponse.from(articleService.createManualArticle(request)));
     }
 
+    @PostMapping("/batch")
+    public AdminArticleImportResponse batchArticles(@Valid @RequestBody AdminArticleImportRequest request) {
+        return articleService.batchArticles(request);
+    }
+
     @PostMapping("/import")
     public AdminArticleImportResponse importArticles(@Valid @RequestBody AdminArticleImportRequest request) {
         return articleService.importArticles(request);

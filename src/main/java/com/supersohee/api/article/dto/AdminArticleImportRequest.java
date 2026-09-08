@@ -7,5 +7,5 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record AdminArticleImportRequest(
-        @NotEmpty @Size(max = 200) List<@Valid AdminArticleImportItem> articles) {
+        @NotEmpty @Size(max = 200) List<@jakarta.validation.constraints.NotNull @Valid AdminArticleImportItem> articles) {
 }
