@@ -121,6 +121,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/player").permitAll()
                                                 .requestMatchers("/api/playerstat").permitAll()
                                                 .requestMatchers("/api/playerstat/all").permitAll()
+                                                .requestMatchers(HttpMethod.GET, "/api/international-results").permitAll()
                                                 .requestMatchers("/api/games/**").permitAll()
                                                 .requestMatchers("/api/stadiums/**").permitAll()
                                                 .requestMatchers("/api/users/me").hasRole("USER")
