@@ -30,6 +30,9 @@ public class AdminApiException extends RuntimeException {
         return new AdminApiException(HttpStatus.UNPROCESSABLE_ENTITY, "ADMIN_VALIDATION_FAILED", message, fields);
     }
 
+    public static AdminApiException rateLimited() { return new AdminApiException(HttpStatus.TOO_MANY_REQUESTS,"ADMIN_RATE_LIMITED","An audit is running or the cooldown has not elapsed."); }
+    public static AdminApiException unavailable(String message) { return new AdminApiException(HttpStatus.SERVICE_UNAVAILABLE,"ADMIN_SERVICE_UNAVAILABLE",message); }
+
     public static AdminApiException notFound(String resource) {
         return new AdminApiException(HttpStatus.NOT_FOUND, "ADMIN_RESOURCE_NOT_FOUND", resource + " was not found.");
     }

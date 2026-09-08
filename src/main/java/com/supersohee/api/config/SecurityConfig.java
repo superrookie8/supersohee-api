@@ -44,6 +44,7 @@ public class SecurityConfig {
                         }
 
                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        if (request.getRequestURI().startsWith("/api/admin/security/")) response.setHeader("Cache-Control", "private, no-store");
                         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                         response.setCharacterEncoding("UTF-8");
 
@@ -74,6 +75,7 @@ public class SecurityConfig {
         public AccessDeniedHandler accessDeniedHandler() {
                 return (request, response, denied) -> {
                         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        if (request.getRequestURI().startsWith("/api/admin/security/")) response.setHeader("Cache-Control", "private, no-store");
                         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                         response.setCharacterEncoding("UTF-8");
                         Map<String, Object> error = new HashMap<>();

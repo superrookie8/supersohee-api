@@ -76,6 +76,7 @@ class AdminContractIntegrationTest {
     @MockitoBean GuestbookService guestbookService;
     @MockitoBean GuestbookPhotoService guestbookPhotoService;
     @MockitoBean ArticleService articleService;
+    @MockitoBean com.supersohee.api.admin.security.SecurityAuditService securityAuditService;
 
     @Test
     void legacyStaticLoginIsDisabled() throws Exception {
@@ -657,6 +658,46 @@ class AdminContractIntegrationTest {
         when(userRepository.findById("user-1")).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("fixture unavailable"));
         mockMvc.perform(get("/api/admin/security/status").header(HttpHeaders.AUTHORIZATION, userBearer()))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void securityRunsRejectInjectedReportsAndRequireCurrentDatabaseRole() throws Exception {
+        for (String body : List.of("{\"url\":\"https://SECRET_SENTINEL.invalid\"}", "{\"findings\":[]}", "[]", "1", "null")) {
+            mockMvc.perform(post("/api/admin/security/runs").header(HttpHeaders.AUTHORIZATION, adminBearer())
+                            .contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest());
+        }
+        org.mockito.Mockito.verifyNoInteractions(securityAuditService);
+        mockMvc.perform(post("/api/admin/security/runs").contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/admin/security/runs").header(HttpHeaders.AUTHORIZATION,userBearer()))
+                .andExpect(status().isForbidden());
+        when(securityAuditService.list(20)).thenReturn(List.of());
+        mockMvc.perform(get("/api/admin/security/runs").header(HttpHeaders.AUTHORIZATION,adminBearer()))
+                .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store, private"))
+                .andExpect(jsonPath("$.runs").isArray());
+        when(securityAuditService.execute(any())).thenThrow(AdminApiException.rateLimited());
+        mockMvc.perform(post("/api/admin/security/runs").header(HttpHeaders.AUTHORIZATION,adminBearer()))
+                .andExpect(status().isTooManyRequests()).andExpect(header().string("Retry-After", "30"));
+    }
+
+
+    @Test
+    void securityRunCreateAndDetailUseThePersistentContract() throws Exception {
+        var now=java.time.Instant.parse("2026-09-08T12:00:00Z");
+        var run=new com.supersohee.api.admin.security.SecurityAuditRun("a639df08-6579-4e8d-90e7-a48f6d585f92",1,now,now,0,
+                new com.supersohee.api.admin.security.SecurityAuditRun.EnvironmentInfo("non-production","unknown"),
+                new com.supersohee.api.admin.security.SecurityAuditRun.Summary(0,0,0,0),List.of(),now.plusSeconds(2592000));
+        when(securityAuditService.execute(any())).thenReturn(run);
+        when(securityAuditService.get(run.id())).thenReturn(run);
+        mockMvc.perform(post("/api/admin/security/runs").header(HttpHeaders.AUTHORIZATION,adminBearer()).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.schemaVersion").value(1))
+                .andExpect(jsonPath("$.environment.backendMode").value("non-production"));
+        mockMvc.perform(get("/api/admin/security/runs/"+run.id()).header(HttpHeaders.AUTHORIZATION,adminBearer()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(run.id()));
+        when(userRepository.findById("admin-member")).thenReturn(java.util.Optional.empty());
+        mockMvc.perform(get("/api/admin/security/runs").header(HttpHeaders.AUTHORIZATION,"Bearer "+jwtUtil.generateUserToken("admin-member")))
+                .andExpect(status().isForbidden());
     }
 
     private String adminBearer() {

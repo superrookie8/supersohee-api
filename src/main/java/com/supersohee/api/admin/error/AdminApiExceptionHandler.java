@@ -23,6 +23,7 @@ import java.util.UUID;
 
 @RestControllerAdvice(assignableTypes = {
         AdminEventController.class,
+        com.supersohee.api.admin.controller.AdminSecurityRunController.class,
         AdminScheduleController.class,
         com.supersohee.api.schedule.controller.ScheduleController.class,
         AdminPlayerStatController.class,
@@ -71,7 +72,9 @@ public class AdminApiExceptionHandler {
             String code,
             String message,
             Map<String, String> fieldErrors) {
-        return ResponseEntity.status(status).body(new AdminErrorResponse(
+        return ResponseEntity.status(status).cacheControl(org.springframework.http.CacheControl.noStore().cachePrivate())
+                .headers(headers -> { if (status.value() == 429) headers.set("Retry-After", "30"); })
+                .body(new AdminErrorResponse(
                 status.value(), code, message, UUID.randomUUID().toString(), fieldErrors));
     }
 }
