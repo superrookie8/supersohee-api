@@ -4,8 +4,6 @@ import com.mongodb.client.result.UpdateResult;
 import com.supersohee.api.internationalresult.domain.InternationalResult;
 import com.supersohee.api.internationalresult.domain.InternationalResultSource;
 import com.supersohee.api.internationalresult.domain.InternationalResultSourceType;
-import com.supersohee.api.internationalresult.domain.InternationalResultStatus;
-import com.supersohee.api.internationalresult.domain.ParticipationStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -18,20 +16,19 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
 @RequiredArgsConstructor
 @Profile("!test")
-@Order(300)
+@Order(400)
 @ConditionalOnProperty(
         prefix = "app.international-results-migration",
         name = "enabled",
         havingValue = "true",
         matchIfMissing = true)
-public class InternationalResultV3Migration implements ApplicationRunner {
-    static final String MIGRATION_ID = "international-results-v3-final-world-cup-2026";
+public class InternationalResultV4Migration implements ApplicationRunner {
+    static final String MIGRATION_ID = "international-results-v4-world-cup-2026-highlight";
     static final String MIGRATION_COLLECTION = "data_migrations";
     static final String COMPETITION_KEY = "2026-fiba-womens-world-cup";
 
@@ -46,17 +43,17 @@ public class InternationalResultV3Migration implements ApplicationRunner {
             }
 
             UpdateResult result = mongoOperations.updateFirst(
-                    competitionQuery(), finalResultUpdate(LocalDateTime.now()), InternationalResult.class);
+                    competitionQuery(), highlightUpdate(), InternationalResult.class);
             if (result.getMatchedCount() != 1) {
                 throw new IllegalStateException("Expected one world cup result.");
             }
 
             mongoOperations.upsert(marker,
-                    new Update().setOnInsert("appliedAt", LocalDateTime.now()),
+                    new Update().setOnInsert("appliedAt", java.time.LocalDateTime.now()),
                     MIGRATION_COLLECTION);
         } catch (RuntimeException failure) {
             // Mongo diagnostics can contain stored values. Do not expose the cause at startup.
-            throw new IllegalStateException("International result migration v3 could not be completed.");
+            throw new IllegalStateException("International result migration v4 could not be completed.");
         }
     }
 
@@ -64,7 +61,7 @@ public class InternationalResultV3Migration implements ApplicationRunner {
         return Query.query(Criteria.where("competitionKey").is(COMPETITION_KEY));
     }
 
-    static Update finalResultUpdate(LocalDateTime now) {
+    static Update highlightUpdate() {
         List<InternationalResultSource> sources = List.of(
                 InternationalResultSource.builder()
                         .label("FIBA 2026 월드컵 이소희 선수 기록")
@@ -77,22 +74,7 @@ public class InternationalResultV3Migration implements ApplicationRunner {
                         .type(InternationalResultSourceType.OFFICIAL)
                         .build());
         return new Update()
-                .set("status", InternationalResultStatus.FINAL)
-                .set("participationStatus", ParticipationStatus.CONFIRMED)
-                .set("teamResult", "B조 3위 · 8강 진출 결정전")
-                .set("teamRecord", "1승 3패")
-                .set("gamesPlayed", 4)
-                .set("minutesPerGame", "17:33")
-                .set("pointsPerGame", 8.0)
-                .set("reboundsPerGame", 1.0)
-                .set("assistsPerGame", 1.0)
-                .set("stealsPerGame", 1.8)
-                .set("fieldGoalPercent", 40.0)
-                .set("threePointPercent", 38.5)
-                .set("freeThrowPercent", 100.0)
                 .set("highlight", "헝가리전에서 12점, 3어시스트와 2스틸을 기록하며 이번 대회 개인 최다 득점을 올렸습니다.")
-                .set("statsUpdatedThrough", null)
-                .set("sources", sources)
-                .set("updatedAt", now);
+                .set("sources", sources);
     }
 }

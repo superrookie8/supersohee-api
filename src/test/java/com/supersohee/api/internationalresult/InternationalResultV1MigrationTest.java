@@ -109,12 +109,13 @@ class InternationalResultV1MigrationTest {
                 .containsEntry("fieldGoalPercent", 40.0)
                 .containsEntry("threePointPercent", 38.5)
                 .containsEntry("freeThrowPercent", 100.0)
+                .containsEntry("highlight", "헝가리전에서 12점, 3어시스트와 2스틸을 기록하며 이번 대회 개인 최다 득점을 올렸습니다.")
                 .containsEntry("statsUpdatedThrough", null);
         @SuppressWarnings("unchecked")
         var sources = (java.util.List<InternationalResultSource>) inserted.get("sources");
         assertThat(sources).extracting(InternationalResultSource::getUrl)
                 .containsExactly(
                         "https://www.fiba.basketball/en/events/fiba-womens-basketball-world-cup-2026/teams/korea/219255-sohee-lee",
-                        "https://www.fiba.basketball/en/events/fiba-womens-basketball-world-cup-2026/games/128144-GER-KOR");
+                        "https://www.fiba.basketball/en/events/fiba-womens-basketball-world-cup-2026/games/128126-HUN-KOR");
     }
 }
