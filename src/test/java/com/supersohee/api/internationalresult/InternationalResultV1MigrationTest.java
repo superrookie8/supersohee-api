@@ -2,6 +2,9 @@ package com.supersohee.api.internationalresult;
 
 import com.supersohee.api.internationalresult.config.InternationalResultV1Migration;
 import com.supersohee.api.internationalresult.domain.InternationalResult;
+import com.supersohee.api.internationalresult.domain.InternationalResultSource;
+import com.supersohee.api.internationalresult.domain.InternationalResultStatus;
+import org.bson.Document;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.data.mongodb.core.MongoOperations;
@@ -72,5 +75,46 @@ class InternationalResultV1MigrationTest {
                 .hasMessage("International result migration v1 could not be completed.")
                 .hasNoCause();
         verify(mongo, never()).upsert(any(Query.class), any(Update.class), eq("data_migrations"));
+    }
+
+    @Test
+    void newDatabaseSeedContainsTheFinal2026WorldCupResult() throws Exception {
+        when(mongo.indexOps(InternationalResult.class)).thenReturn(indexes);
+        when(mongo.exists(any(Query.class), eq("data_migrations"))).thenReturn(false);
+
+        migration.run(new DefaultApplicationArguments());
+
+        var queryCaptor = org.mockito.ArgumentCaptor.forClass(Query.class);
+        var updateCaptor = org.mockito.ArgumentCaptor.forClass(Update.class);
+        verify(mongo, times(10)).upsert(
+                queryCaptor.capture(), updateCaptor.capture(), eq(InternationalResult.class));
+        int worldCupIndex = java.util.stream.IntStream.range(0, queryCaptor.getAllValues().size())
+                .filter(index -> "2026-fiba-womens-world-cup".equals(
+                        queryCaptor.getAllValues().get(index).getQueryObject().getString("competitionKey")))
+                .findFirst()
+                .orElseThrow();
+        Document inserted = updateCaptor.getAllValues().get(worldCupIndex)
+                .getUpdateObject().get("$setOnInsert", Document.class);
+
+        assertThat(inserted)
+                .containsEntry("status", InternationalResultStatus.FINAL)
+                .containsEntry("teamResult", "B조 3위 · 8강 진출 결정전")
+                .containsEntry("teamRecord", "1승 3패")
+                .containsEntry("gamesPlayed", 4)
+                .containsEntry("minutesPerGame", "17:33")
+                .containsEntry("pointsPerGame", 8.0)
+                .containsEntry("reboundsPerGame", 1.0)
+                .containsEntry("assistsPerGame", 1.0)
+                .containsEntry("stealsPerGame", 1.8)
+                .containsEntry("fieldGoalPercent", 40.0)
+                .containsEntry("threePointPercent", 38.5)
+                .containsEntry("freeThrowPercent", 100.0)
+                .containsEntry("statsUpdatedThrough", null);
+        @SuppressWarnings("unchecked")
+        var sources = (java.util.List<InternationalResultSource>) inserted.get("sources");
+        assertThat(sources).extracting(InternationalResultSource::getUrl)
+                .containsExactly(
+                        "https://www.fiba.basketball/en/events/fiba-womens-basketball-world-cup-2026/teams/korea/219255-sohee-lee",
+                        "https://www.fiba.basketball/en/events/fiba-womens-basketball-world-cup-2026/games/128144-GER-KOR");
     }
 }

@@ -11,6 +11,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.annotation.Order;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.index.Index;
@@ -26,6 +27,7 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 @Profile("!test")
+@Order(100)
 @ConditionalOnProperty(
         prefix = "app.international-results-migration",
         name = "enabled",
@@ -115,12 +117,16 @@ public class InternationalResultV1Migration implements ApplicationRunner {
                                 "https://www.koreabasketball.or.kr/game/intl_schedule_view.php?idx=1352"),
                         10, now),
                 seed("2026-fiba-womens-world-cup", "FIBA 여자농구 월드컵", "2026",
-                        InternationalResultCategory.NATIONAL_TEAM, InternationalResultStatus.IN_PROGRESS,
+                        InternationalResultCategory.NATIONAL_TEAM, InternationalResultStatus.FINAL,
                         ParticipationStatus.CONFIRMED, "2026-09-04", "2026-09-13", "독일 베를린",
-                        "대한민국", null, null, 3, "17:24", 9.7, 1.0, 1.3, 2.0, 45.8, 36.4, 100.0,
-                        "9월 9일 기준 기록이며 대회 종료 후 최종 기록으로 갱신합니다.", "2026-09-09",
-                        official("FIBA 2026 월드컵 이소희 선수 기록",
-                                "https://www.fiba.basketball/en/events/fiba-womens-basketball-world-cup-2026/teams/korea/219255-sohee-lee"),
+                        "대한민국", "B조 3위 · 8강 진출 결정전", "1승 3패", 4, "17:33",
+                        8.0, 1.0, 1.0, 1.8, 40.0, 38.5, 100.0,
+                        "4경기에 출전해 헝가리전에서 12점, 독일과의 8강 진출 결정전에서 3점과 1스틸을 기록했습니다.", null,
+                        List.of(
+                                source("FIBA 2026 월드컵 이소희 선수 기록",
+                                        "https://www.fiba.basketball/en/events/fiba-womens-basketball-world-cup-2026/teams/korea/219255-sohee-lee"),
+                                source("FIBA 2026 월드컵 독일-대한민국 공식 경기",
+                                        "https://www.fiba.basketball/en/events/fiba-womens-basketball-world-cup-2026/games/128144-GER-KOR")),
                         20, now),
                 seed("2026-mitsui-fudosan-cup-tokyo", "미쓰이 후도산컵 도쿄대회", "2026",
                         InternationalResultCategory.EXHIBITION, InternationalResultStatus.FINAL,
