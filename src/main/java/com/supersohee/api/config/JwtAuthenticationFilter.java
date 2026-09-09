@@ -19,6 +19,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    public static final String TOKEN_ISSUED_AT_ATTRIBUTE = "supersohee.auth.tokenIssuedAt";
+
     private final JwtUtil jwtUtil;
     private final com.supersohee.api.user.repository.UserRepository userRepository;
 
@@ -39,14 +41,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 if (!JwtUtil.ROLE_USER.equals(principal.role())) {
                     throw new io.jsonwebtoken.JwtException("Legacy administrator tokens are disabled");
                 }
+                var user = userRepository.findById(principal.subject())
+                        .orElseThrow(() -> new io.jsonwebtoken.JwtException("Token subject no longer exists"));
                 var authorities = new java.util.ArrayList<SimpleGrantedAuthority>();
                 authorities.add(new SimpleGrantedAuthority(principal.role()));
                 // Social/member JWTs remain USER tokens. Check the server-owned DB
                 // permission afresh on every admin request, so revocation needs no logout.
                 if (JwtUtil.ROLE_USER.equals(principal.role()) && request.getRequestURI().startsWith("/api/admin/")) {
-                    userRepository.findById(principal.subject())
-                            .filter(user -> "ADMIN".equals(user.getRole()))
-                            .ifPresent(user -> authorities.add(new SimpleGrantedAuthority(JwtUtil.ROLE_ADMIN)));
+                    if ("ADMIN".equals(user.getRole())) {
+                        authorities.add(new SimpleGrantedAuthority(JwtUtil.ROLE_ADMIN));
+                    }
                 }
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         principal.subject(),
@@ -54,6 +58,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         authorities);
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+                request.setAttribute(TOKEN_ISSUED_AT_ATTRIBUTE, principal.issuedAt());
             } catch (RuntimeException ignored) {
                 SecurityContextHolder.clearContext();
             }

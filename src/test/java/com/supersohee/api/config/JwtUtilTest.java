@@ -21,6 +21,7 @@ class JwtUtilTest {
         assertThat(user.subject()).isEqualTo("user-1");
         assertThat(user.role()).isEqualTo(JwtUtil.ROLE_USER);
         assertThat(user.tokenType()).isEqualTo(JwtUtil.USER_ACCESS_TOKEN);
+        assertThat(user.issuedAt()).isNotNull();
         assertThat(admin.subject()).isEqualTo("admin");
         assertThat(admin.role()).isEqualTo(JwtUtil.ROLE_ADMIN);
         assertThat(admin.tokenType()).isEqualTo(JwtUtil.ADMIN_ACCESS_TOKEN);

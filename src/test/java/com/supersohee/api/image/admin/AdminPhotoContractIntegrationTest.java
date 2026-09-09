@@ -129,6 +129,8 @@ class AdminPhotoContractIntegrationTest {
     }
 
     private String userBearer() {
+        when(userRepository.findById("user-1")).thenReturn(java.util.Optional.of(
+                com.supersohee.api.user.domain.User.builder().id("user-1").build()));
         return "Bearer " + jwtUtil.generateUserToken("user-1");
     }
 }

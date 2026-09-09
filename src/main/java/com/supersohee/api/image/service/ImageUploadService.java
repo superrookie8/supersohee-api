@@ -11,6 +11,10 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest; // 수정
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
@@ -52,7 +56,7 @@ public class ImageUploadService {
             "gif", List.of("image/gif"),
             "webp", List.of("image/webp"));
 
-    private S3Client getS3Client() {
+    protected S3Client getS3Client() {
         AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKeyId, secretAccessKey);
 
         return S3Client.builder()
@@ -107,6 +111,28 @@ public class ImageUploadService {
         }
 
         return uploadedKeys;
+    }
+
+    public String uploadProfileImage(String userId, MultipartFile file) throws IOException {
+        if (!isSafeUserIdSegment(userId)) {
+            throw new ImageValidationException(ImageValidationException.Reason.INVALID_FILENAME);
+        }
+        validateImageForUpload(file);
+
+        String key = "profile/" + userId + "/" + generateFileName(file.getOriginalFilename());
+        S3Client s3Client = getS3Client();
+        try {
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .contentType(file.getContentType())
+                    .build();
+            s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(
+                    file.getInputStream(), file.getSize()));
+            return key;
+        } finally {
+            s3Client.close();
+        }
     }
 
     // 이벤트 이미지 업로드 (event/ 경로로 저장)
@@ -209,6 +235,53 @@ public class ImageUploadService {
         }
     }
 
+    public void deleteAllUserProfileImages(String userId) {
+        if (!isSafeUserIdSegment(userId)) {
+            throw new IllegalArgumentException("유효하지 않은 사용자 식별자입니다");
+        }
+        String ownedPrefix = "profile/" + userId + "/";
+        List<ObjectIdentifier> ownedObjects = new ArrayList<>();
+
+        try (S3Client s3Client = getS3Client()) {
+            String continuationToken = null;
+            do {
+                ListObjectsV2Response page = s3Client.listObjectsV2(ListObjectsV2Request.builder()
+                        .bucket(bucketName)
+                        .prefix(ownedPrefix)
+                        .continuationToken(continuationToken)
+                        .build());
+                page.contents().stream()
+                        .map(software.amazon.awssdk.services.s3.model.S3Object::key)
+                        .filter(key -> key != null
+                                && key.startsWith(ownedPrefix)
+                                && key.length() > ownedPrefix.length())
+                        .map(key -> ObjectIdentifier.builder().key(key).build())
+                        .forEach(ownedObjects::add);
+
+                if (!Boolean.TRUE.equals(page.isTruncated())) {
+                    continuationToken = null;
+                } else {
+                    continuationToken = page.nextContinuationToken();
+                    if (continuationToken == null || continuationToken.isBlank()) {
+                        throw new IllegalStateException("프로필 이미지 목록을 끝까지 조회할 수 없습니다");
+                    }
+                }
+            } while (continuationToken != null);
+
+            for (int fromIndex = 0; fromIndex < ownedObjects.size(); fromIndex += 1000) {
+                int toIndex = Math.min(fromIndex + 1000, ownedObjects.size());
+                List<ObjectIdentifier> batch = ownedObjects.subList(fromIndex, toIndex);
+                var response = s3Client.deleteObjects(DeleteObjectsRequest.builder()
+                        .bucket(bucketName)
+                        .delete(delete -> delete.objects(batch))
+                        .build());
+                if (response.hasErrors()) {
+                    throw new IllegalStateException("일부 프로필 이미지를 삭제하지 못했습니다");
+                }
+            }
+        }
+    }
+
     void validateImageForUpload(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new ImageValidationException(ImageValidationException.Reason.MISSING_FILE);
@@ -247,6 +320,10 @@ public class ImageUploadService {
     private String generateFileName(String originalFilename) {
         String extension = getFileExtension(originalFilename);
         return UUID.randomUUID().toString() + "." + extension;
+    }
+
+    private boolean isSafeUserIdSegment(String userId) {
+        return userId != null && userId.matches("[A-Za-z0-9_-]{1,128}");
     }
 
     private String getFileExtension(String filename) {

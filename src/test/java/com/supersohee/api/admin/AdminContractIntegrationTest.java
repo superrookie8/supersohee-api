@@ -21,6 +21,7 @@ import com.supersohee.api.article.domain.Article;
 import com.supersohee.api.article.dto.AdminArticleImportResponse;
 import com.supersohee.api.article.service.ArticleService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -77,6 +78,12 @@ class AdminContractIntegrationTest {
     @MockitoBean GuestbookPhotoService guestbookPhotoService;
     @MockitoBean ArticleService articleService;
     @MockitoBean com.supersohee.api.admin.security.SecurityAuditService securityAuditService;
+
+    @BeforeEach
+    void ordinaryMemberExists() {
+        when(userRepository.findById("user-1")).thenReturn(java.util.Optional.of(
+                com.supersohee.api.user.domain.User.builder().id("user-1").build()));
+    }
 
     @Test
     void legacyStaticLoginIsDisabled() throws Exception {
@@ -650,7 +657,7 @@ class AdminContractIntegrationTest {
         mockMvc.perform(get("/api/admin/security/status").header(HttpHeaders.AUTHORIZATION, sameBearer))
                 .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/admin/security/status").header(HttpHeaders.AUTHORIZATION, sameBearer))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -697,7 +704,7 @@ class AdminContractIntegrationTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(run.id()));
         when(userRepository.findById("admin-member")).thenReturn(java.util.Optional.empty());
         mockMvc.perform(get("/api/admin/security/runs").header(HttpHeaders.AUTHORIZATION,"Bearer "+jwtUtil.generateUserToken("admin-member")))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     private String adminBearer() {

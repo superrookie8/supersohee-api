@@ -14,4 +14,6 @@ public interface ArcadeScoreRepository extends MongoRepository<ArcadeScore, Stri
     
     // 상위 N명 랭킹
     List<ArcadeScore> findTop10ByOrderByBestScoreDesc();
+
+    void deleteAllByUserId(String userId);
 }

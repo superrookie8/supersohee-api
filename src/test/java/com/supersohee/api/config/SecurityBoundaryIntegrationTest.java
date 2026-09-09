@@ -33,6 +33,8 @@ class SecurityBoundaryIntegrationTest {
 
     @Test
     void adminApiRejectsUserToken() throws Exception {
+        org.mockito.Mockito.when(userRepository.findById("user-1")).thenReturn(java.util.Optional.of(
+                com.supersohee.api.user.domain.User.builder().id("user-1").build()));
         mockMvc.perform(get("/api/admin/security-boundary-probe")
                         .header(HttpHeaders.AUTHORIZATION, bearer(jwtUtil.generateUserToken("user-1"))))
                 .andExpect(status().isForbidden());

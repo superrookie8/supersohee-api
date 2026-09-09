@@ -18,5 +18,7 @@ public interface DiaryRepository extends MongoRepository<Diary, String> {
         
     // 유저별 직관 승률 통계용 (DIRECT만)
     List<Diary> findByUserIdAndWatchType(String userId, String watchType);
+
+    void deleteAllByUserId(String userId);
     
 }

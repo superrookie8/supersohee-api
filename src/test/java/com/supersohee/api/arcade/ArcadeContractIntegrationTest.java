@@ -6,6 +6,7 @@ import com.supersohee.api.arcade.error.ArcadeApiException;
 import com.supersohee.api.arcade.service.ArcadeService;
 import com.supersohee.api.config.JwtUtil;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -32,6 +33,13 @@ class ArcadeContractIntegrationTest {
     @Autowired MockMvc mockMvc;
     @Autowired JwtUtil jwtUtil;
     @MockitoBean ArcadeService arcadeService;
+    @MockitoBean com.supersohee.api.user.repository.UserRepository userRepository;
+
+    @BeforeEach
+    void userExists() {
+        when(userRepository.findById("user-1")).thenReturn(java.util.Optional.of(
+                com.supersohee.api.user.domain.User.builder().id("user-1").build()));
+    }
 
     @Test
     void rankingIsPublicAndUsesNullPrincipalForAnonymousRequests() throws Exception {

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Date;
 import java.util.Objects;
 import java.util.Set;
@@ -72,6 +73,10 @@ public class JwtUtil {
         Set<String> audiences = claims.getAudience();
         String role = requireClaim(claims, "role");
         String tokenType = requireClaim(claims, "token_type");
+        Date issuedAt = claims.getIssuedAt();
+        if (issuedAt == null) {
+            throw new JwtException("Missing or invalid claim: iat");
+        }
 
         if (!issuer.equals(tokenIssuer)) {
             throw new JwtException("Unexpected token issuer");
@@ -96,7 +101,7 @@ public class JwtUtil {
             throw new JwtException("Unexpected token type");
         }
 
-        return new JwtPrincipal(subject, role, tokenType);
+        return new JwtPrincipal(subject, role, tokenType, issuedAt.toInstant());
     }
 
     public boolean validateToken(String token) {
@@ -158,11 +163,12 @@ public class JwtUtil {
         return value;
     }
 
-    public record JwtPrincipal(String subject, String role, String tokenType) {
+    public record JwtPrincipal(String subject, String role, String tokenType, Instant issuedAt) {
         public JwtPrincipal {
             Objects.requireNonNull(subject);
             Objects.requireNonNull(role);
             Objects.requireNonNull(tokenType);
+            Objects.requireNonNull(issuedAt);
         }
     }
 }

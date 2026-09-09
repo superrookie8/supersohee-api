@@ -78,6 +78,8 @@ class GoogleAuthExchangeIntegrationTest {
         JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
         String token = body.get("accessToken").asText();
         assertThat(jwtUtil.parseAndValidateToken(token).role()).isEqualTo(JwtUtil.ROLE_USER);
+        when(userRepository.findById("user-1")).thenReturn(java.util.Optional.of(
+                User.builder().id("user-1").build()));
 
         mockMvc.perform(get("/api/admin/security-boundary-probe")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))

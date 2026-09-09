@@ -32,4 +32,18 @@ public class UserApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Map.of("message", "사용자를 찾을 수 없습니다."));
     }
+
+    @ExceptionHandler(RecentAuthenticationRequiredException.class)
+    ResponseEntity<Map<String, String>> handleRecentAuthenticationRequired(
+            RecentAuthenticationRequiredException exception) {
+        return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED)
+                .body(Map.of("message", exception.getMessage()));
+    }
+
+    @ExceptionHandler(AccountDeletionUnavailableException.class)
+    ResponseEntity<Map<String, String>> handleAccountDeletionUnavailable(
+            AccountDeletionUnavailableException exception) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("message", exception.getMessage()));
+    }
 }

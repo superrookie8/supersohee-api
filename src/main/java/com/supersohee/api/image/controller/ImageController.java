@@ -64,4 +64,19 @@ public class ImageController {
             return ResponseEntity.badRequest().body(error);
         }
     }
+
+    @PostMapping("/profile")
+    public ResponseEntity<Map<String, String>> uploadProfileImage(
+            @AuthenticationPrincipal String userId,
+            @RequestParam("file") MultipartFile file) {
+        try {
+            return ResponseEntity.ok(Map.of("key", imageUploadService.uploadProfileImage(userId, file)));
+        } catch (IOException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "이미지 업로드에 실패했습니다."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "이미지 요청이 올바르지 않습니다."));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "이미지 업로드 중 오류가 발생했습니다."));
+        }
+    }
 }

@@ -4,13 +4,16 @@ import com.supersohee.api.user.service.UserService;
 import com.supersohee.api.user.domain.User;
 import com.supersohee.api.user.dto.*;
 import com.supersohee.api.config.JwtUtil;
+import com.supersohee.api.config.JwtAuthenticationFilter;
 import com.supersohee.api.image.service.ImageUploadService;
+import com.supersohee.api.user.service.UserWithdrawalService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import java.util.Map;
+import java.time.Instant;
 
 @RestController
 @RequestMapping("/api/users")
@@ -20,6 +23,7 @@ public class UserController {
         private final UserService userService;
         private final JwtUtil jwtUtil;
         private final ImageUploadService imageUploadService;
+        private final UserWithdrawalService userWithdrawalService;
 
         /**
          * 저장된 profileImageUrl을 화면이 바로 쓸 수 있는 주소로 바꾼다.
@@ -92,6 +96,15 @@ public class UserController {
                 return ResponseEntity.ok(withDisplayableProfileImage(UserResponse.from(
                                 userService.updateMyProfile(
                                                 userId, request.nickname(), request.profileImageUrl()))));
+        }
+
+        @DeleteMapping("/me")
+        public ResponseEntity<Void> deleteCurrentUser(
+                        @AuthenticationPrincipal String userId,
+                        @RequestAttribute(JwtAuthenticationFilter.TOKEN_ISSUED_AT_ATTRIBUTE) Instant tokenIssuedAt,
+                        @Valid @RequestBody DeleteMyAccountRequest request) {
+                userWithdrawalService.withdraw(userId, tokenIssuedAt);
+                return ResponseEntity.noContent().build();
         }
 
         // 닉네임 중복 확인. 본인이 쓰고 있는 닉네임은 사용 가능으로 응답한다.
