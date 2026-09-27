@@ -29,6 +29,18 @@ class ArticlePublicContractIntegrationTest {
     @MockitoBean ArticleService articleService;
 
     @Test
+    void unifiedRouteUsesGlobalPageAndValidatesSource() throws Exception {
+        when(articleService.getPage("all", 0, 8)).thenReturn(ArticlePageResponse.builder()
+                .articles(List.of()).total(0).page(0).limit(8).totalPages(0)
+                .hasNext(false).hasPrevious(false).build());
+        mockMvc.perform(get("/api/articles")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.limit").value(8));
+        verify(articleService).getPage("all", 0, 8);
+        mockMvc.perform(get("/api/articles").queryParam("source", "manual"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void sourceIsNormalizedAndLatestPageShapeUsesSeoulOffsetDatetime() throws Exception {
         Article latest = Article.builder()
                 .id("article-1")

@@ -24,6 +24,18 @@ public class ArticleController {
 
     private final ArticleService articleService;
 
+    @GetMapping
+    public ArticlePageResponse getArticles(@RequestParam(defaultValue="all") String source,
+            @RequestParam(defaultValue="0") int page, @RequestParam(defaultValue="8") int limit) {
+        String normalized=source.trim().toLowerCase(Locale.ROOT);
+        Map<String,String> fields=new LinkedHashMap<>();
+        if (!"all".equals(normalized) && !SUPPORTED_SOURCES.contains(normalized)) fields.put("source","source must be all, jumpball, rookie or other.");
+        if(page<0) fields.put("page","page must be non-negative.");
+        if(limit<1||limit>MAX_PAGE_SIZE) fields.put("limit","limit must be between 1 and 100.");
+        if(!fields.isEmpty()) throw ArticleApiException.validation(fields);
+        return articleService.getPage(normalized,page,limit);
+    }
+
     // 메인 페이지용: 가장 최근 기사 1개 (소스 상관없이)
     @GetMapping("/latest")
     public ResponseEntity<Article> getLatestArticle() {

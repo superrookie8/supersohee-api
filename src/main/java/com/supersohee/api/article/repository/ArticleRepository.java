@@ -6,6 +6,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import com.supersohee.api.article.domain.Article;
 
 import java.util.Optional;
+import java.util.Collection;
 
 public interface ArticleRepository extends MongoRepository<Article, String> {
     
@@ -16,6 +17,7 @@ public interface ArticleRepository extends MongoRepository<Article, String> {
      // 소스별 최신 기사 조회 (페이징: 점프볼/루키별 10개씩) - Page 반환으로 변경
      Page<Article> findBySourceOrderByPublishedAtDesc(String source, Pageable pageable);
      Page<Article> findAllByOrderByPublishedAtDesc(Pageable pageable);
+     Page<Article> findBySourceIn(Collection<String> sources, Pageable pageable);
      Optional<Article> findBySourceAndUrl(String source, String url);
 
 

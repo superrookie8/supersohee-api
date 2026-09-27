@@ -119,14 +119,14 @@ class ArticleServiceAdminTest {
         MongoOperations mongoOperations = mock(MongoOperations.class);
         ArticleService service = new ArticleService(repository, mongoOperations);
         Article latest = Article.builder().id("latest").source("jumpball").build();
-        when(repository.findBySourceOrderByPublishedAtDesc("jumpball", PageRequest.of(0, 1)))
-                .thenReturn(new PageImpl<>(List.of(latest), PageRequest.of(0, 1), 1));
+        when(repository.findBySourceOrderByPublishedAtDesc("jumpball", PageRequest.of(0, 1, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"))))
+                .thenReturn(new PageImpl<>(List.of(latest), PageRequest.of(0, 1, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id")), 1));
 
         var response = service.getBySource("jumpball", 0, 1);
 
         assertThat(response.getArticles()).extracting(item -> item.id()).containsExactly("latest");
         assertThat(response.getTotal()).isEqualTo(1);
-        verify(repository).findBySourceOrderByPublishedAtDesc("jumpball", PageRequest.of(0, 1));
+        verify(repository).findBySourceOrderByPublishedAtDesc("jumpball", PageRequest.of(0, 1, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id")));
     }
 
     private AdminArticleImportRequest singleArticleRequest() {

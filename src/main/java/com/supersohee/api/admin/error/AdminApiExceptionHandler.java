@@ -23,6 +23,8 @@ import java.util.UUID;
 
 @RestControllerAdvice(assignableTypes = {
         AdminEventController.class,
+        com.supersohee.api.video.controller.VideoController.class,
+        com.supersohee.api.video.controller.AdminVideoController.class,
         com.supersohee.api.admin.controller.AdminSecurityRunController.class,
         AdminScheduleController.class,
         com.supersohee.api.schedule.controller.ScheduleController.class,
@@ -51,6 +53,7 @@ public class AdminApiExceptionHandler {
     @ExceptionHandler({
             HttpMessageNotReadableException.class,
             MissingServletRequestParameterException.class,
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
             IllegalArgumentException.class
     })
     ResponseEntity<AdminErrorResponse> handleBadRequest() {

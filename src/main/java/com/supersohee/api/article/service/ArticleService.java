@@ -34,7 +34,7 @@ public class ArticleService {
     
     // 점프볼/루키별 기사 (페이지네이션 + 메타 정보 포함)
     public ArticlePageResponse getBySource(String source, int page, int limit) {
-        Pageable pageable = PageRequest.of(page, limit);
+        Pageable pageable = PageRequest.of(page, limit, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"));
         Page<Article> articlePage = articleRepository.findBySourceOrderByPublishedAtDesc(source, pageable);
         
         return ArticlePageResponse.builder()
@@ -46,6 +46,15 @@ public class ArticleService {
                 .hasNext(articlePage.hasNext())
                 .hasPrevious(articlePage.hasPrevious())
                 .build();
+    }
+
+    public ArticlePageResponse getPage(String source, int page, int limit) {
+        var sources = source == null || "all".equals(source) ? java.util.List.of("jumpball", "rookie", "other") : java.util.List.of(source);
+        var result = articleRepository.findBySourceIn(sources, PageRequest.of(page, limit,
+                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "publishedAt", "id")));
+        return ArticlePageResponse.builder().articles(result.getContent().stream().map(ArticleResponse::from).toList())
+                .total(result.getTotalElements()).page(page).limit(limit).totalPages(result.getTotalPages())
+                .hasNext(result.hasNext()).hasPrevious(result.hasPrevious()).build();
     }
 
     public Page<Article> getAdminArticles(String source, int page, int size) {
