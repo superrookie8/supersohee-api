@@ -7,6 +7,8 @@ import com.supersohee.api.article.controller.AdminArticleController;
 import com.supersohee.api.image.admin.controller.AdminPhotoController;
 import com.supersohee.api.playerstat.controller.AdminPlayerStatController;
 import com.supersohee.api.schedule.controller.AdminScheduleController;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +37,8 @@ import java.util.UUID;
         AdminPhotoController.class
 })
 public class AdminApiExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(AdminApiExceptionHandler.class);
 
     @ExceptionHandler(AdminApiException.class)
     ResponseEntity<AdminErrorResponse> handleAdminException(AdminApiException exception) {
@@ -66,7 +70,9 @@ public class AdminApiExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    ResponseEntity<AdminErrorResponse> handleUnexpected() {
+    ResponseEntity<AdminErrorResponse> handleUnexpected(Exception exception) {
+        // 예외 메시지에는 저장된 값이 섞일 수 있어 타입만 남긴다.
+        log.warn("Unexpected admin API failure ({})", exception.getClass().getName());
         return error(HttpStatus.INTERNAL_SERVER_ERROR, "ADMIN_OPERATION_FAILED", "The admin operation failed.", Map.of());
     }
 

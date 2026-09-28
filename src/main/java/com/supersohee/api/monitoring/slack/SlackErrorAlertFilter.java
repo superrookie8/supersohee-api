@@ -10,6 +10,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.servlet.DispatcherServlet;
 
 import java.io.IOException;
 
@@ -39,9 +40,16 @@ public class SlackErrorAlertFilter extends OncePerRequestFilter {
             throw failure;
         } finally {
             if (!reported && response.getStatus() >= HttpServletResponse.SC_INTERNAL_SERVER_ERROR) {
-                reportSafely(request, response.getStatus(), null);
+                reportSafely(request, response.getStatus(), resolvedException(request));
             }
         }
+    }
+
+    // @ExceptionHandler가 ResponseEntity로 처리한 예외는 DispatcherServlet이 이 속성에 남긴다.
+    private static Throwable resolvedException(HttpServletRequest request) {
+        return request.getAttribute(DispatcherServlet.EXCEPTION_ATTRIBUTE) instanceof Throwable failure
+                ? failure
+                : null;
     }
 
     private void reportSafely(HttpServletRequest request, int status, Throwable failure) {
