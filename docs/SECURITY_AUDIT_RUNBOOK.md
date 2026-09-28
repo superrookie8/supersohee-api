@@ -17,3 +17,16 @@ Cooldown and execution exclusion are per JVM (30 seconds), not a distributed loc
 Verification uses mocked MongoDB, fixed test values, injected DNS/transport fixtures and local HTTP fixture servers. Local transport tests verify no Authorization/Cookie transmission, no redirect following and cancellation of slow response headers. No real audit POST, database result write or application restart is performed by these tests.
 
 Primary implementation references: Apache HttpClient `PoolingHttpClientConnectionManagerBuilder.setDnsResolver`, default TLS configuration, request cancellation and immediate response closure. Dependency version is managed by the existing Spring Boot BOM.
+
+
+## Repository and storage metadata checks (2026-09-09)
+
+The existing empty-body run endpoint and schema version 1 remain unchanged. New categories are `repository` and `storage`; `provider-api` is an additional evidence type. Existing histories remain readable.
+
+- GitHub targets are fixed to the two application repositories. An optional server-only `GITHUB_SECURITY_TOKEN` enables bounded Dependabot reads; absent credentials or denied/rate-limited access produce unknown findings. No token, response body, workflow name, log, repository URL or alert description is saved. API version 2022-11-28 remains supported. A successful latest Actions run does not certify deployment or database ingestion.
+- The crawler workflow check separates its enabled state and latest scheduled execution from repository-wide Actions. A scheduled execution older than eight days warns; missing or future timestamps are unknown. Workflow revision does not identify the crawler branch checkout. No import receipt is inferred.
+- Mongo and GridFS checks read at most 1001 documents per fixed collection with maxTimeMS=1000 and disk use disabled. Reported counts and bytes are samples, not total database/storage size. Missing collections, permissions and incomplete cursors are unknown. Article timestamps are explicitly sample observations; whole-collection freshness remains unknown because no indexed latest query is performed. No image bytes, object identifiers, chunk validation or backups are read.
+- R2 checks only HEAD the existing configured bucket using the existing SDK, TLS verification, a two-second call budget and zero retries. Endpoints are restricted to Cloudflare R2 HTTPS hosts. SDK 2.20.0 UrlConnectionHttpClient disables redirects. A successful HEAD does not establish ACL safety, public exposure, object integrity, total size or restoration.
+- GitHub requests pin public DNS, do not follow redirects, and cap successful response bodies at 256 KiB; error bodies are not consumed. Provider errors retain no exception details. Run execution has a 25-second budget, storage five seconds, and frontend timeout 40 seconds. Unfinished extension checks persist as unknown. Worker concurrency remains bounded; no workflow dispatch, upload/delete/import, index creation or permission changes occur.
+
+Fixture verification uses mocked provider/DB interfaces and pure bounded-body parsing. It does not execute the real run endpoint, contact providers/databases or test the production R2 transport. R2 redirect behavior was checked against the pinned AWS SDK source, not a live bucket.

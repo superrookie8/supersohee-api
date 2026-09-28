@@ -140,4 +140,24 @@ class SecurityAuditServiceTest {
                         eq(SecurityAuditRun.class));
         service.shutdown();
     }
+    @Test void extensionResultsAndUnfinishedChecksArePersistedWithExistingSchema() {
+        var repositories = mock(RepositoryAuditChecks.class);
+        var stores = mock(StorageAuditChecks.class);
+        doAnswer(invocation -> {
+            java.util.function.Consumer<SecurityAuditRun.Check> sink = invocation.getArgument(0);
+            sink.accept(RepositoryAuditChecks.result("repository-web-actions", "pass", "Observed fixture execution only.", 200));
+            return null;
+        }).when(repositories).inspect(any());
+        var extended = new SecurityAuditService(mongo, env, probe, Clock.fixed(now, ZoneOffset.UTC), repositories, stores);
+        try {
+            var run = extended.execute(null);
+            assertThat(run.schemaVersion()).isEqualTo(1);
+            assertThat(run.checks()).filteredOn(c -> RepositoryAuditChecks.IDS.contains(c.id()) || StorageAuditChecks.IDS.contains(c.id())).hasSize(9);
+            assertThat(run.checks()).anyMatch(c -> c.id().equals("repository-web-actions") && c.status().equals("pass"));
+            assertThat(run.checks()).anyMatch(c -> c.id().equals("storage-r2") && c.status().equals("unknown"));
+            assertThat(run.toString()).doesNotContain("SECRET_SENTINEL");
+            verify(mongo).save(run);
+        } finally { extended.shutdown(); service.shutdown(); }
+    }
+
 }

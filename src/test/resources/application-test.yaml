@@ -24,6 +24,8 @@ app:
     enabled: false
   user-index:
     enabled: false
+  international-results-migration:
+    enabled: false
 
 cloudflare:
   r2:

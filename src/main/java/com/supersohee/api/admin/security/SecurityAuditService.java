@@ -23,6 +23,8 @@ public class SecurityAuditService {
     private final Environment env;
     private final SecurityAuditProbe probe;
     private final Clock clock;
+    private final RepositoryAuditChecks repositoryChecks;
+    private final StorageAuditChecks storageChecks;
     private final AtomicBoolean running = new AtomicBoolean();
     private volatile Instant nextAllowed = Instant.MIN;
     // One bounded worker per process. A stuck driver call cannot grow thread count.
@@ -35,12 +37,18 @@ public class SecurityAuditService {
                     });
 
     @org.springframework.beans.factory.annotation.Autowired
-    public SecurityAuditService(MongoOperations mongo, Environment env, SecurityAuditProbe probe) {
-        this(mongo, env, probe, Clock.systemUTC());
+    public SecurityAuditService(MongoOperations mongo, Environment env, SecurityAuditProbe probe, RepositoryAuditChecks repositoryChecks, StorageAuditChecks storageChecks) {
+        this(mongo, env, probe, Clock.systemUTC(), repositoryChecks, storageChecks);
     }
 
     SecurityAuditService(
             MongoOperations mongo, Environment env, SecurityAuditProbe probe, Clock clock) {
+        this(mongo, env, probe, clock, null, null);
+    }
+
+    SecurityAuditService(MongoOperations mongo, Environment env, SecurityAuditProbe probe, Clock clock, RepositoryAuditChecks repositoryChecks, StorageAuditChecks storageChecks) {
+        this.repositoryChecks = repositoryChecks;
+        this.storageChecks = storageChecks;
         this.mongo = mongo;
         this.env = env;
         this.probe = probe;
@@ -83,6 +91,10 @@ public class SecurityAuditService {
         Instant started = clock.instant();
         nextAllowed = started.plusSeconds(30);
         var checks = new CopyOnWriteArrayList<SecurityAuditRun.Check>();
+        if (repositoryChecks != null) RepositoryAuditChecks.IDS.forEach(id -> checks.add(RepositoryAuditChecks.unknown(id)));
+        if (storageChecks != null) StorageAuditChecks.IDS.forEach(id -> checks.add(id.equals("storage-r2")
+                ? new SecurityAuditRun.Check(id, "storage", id, "unknown", "provider-api", "Not completed within this run.", "Review service availability.", clock.instant(), 0, null)
+                : StorageAuditChecks.unknown(id)));
         boolean production = env.acceptsProfiles(Profiles.of("prod"));
         String origin = env.getProperty("app.frontend.url", "");
         var future =
@@ -95,9 +107,10 @@ public class SecurityAuditService {
                             }
                         });
         try {
-            future.get(15, TimeUnit.SECONDS);
+            future.get(25, TimeUnit.SECONDS);
         } catch (Exception ignored) {
             // Do not clear running while an uninterruptible driver is still executing.
+            future.cancel(true);
             add(
                     checks,
                     "run-time-limit",
@@ -295,7 +308,14 @@ public class SecurityAuditService {
                                                                 List.of("source", "url"))),
                 "Read existing index metadata for a unique article source and URL identity.",
                 "Review the existing article index before importing; this check never creates it.");
-        checks.addAll(probe.inspect(origin, prod));
+        java.util.function.Consumer<SecurityAuditRun.Check> replace = finding -> {
+            for (int i = 0; i < checks.size(); i++) {
+                if (checks.get(i).id().equals(finding.id())) { checks.set(i, finding); return; }
+            }
+        };
+        if (!Thread.currentThread().isInterrupted() && repositoryChecks != null) repositoryChecks.inspect(replace);
+        if (!Thread.currentThread().isInterrupted() && storageChecks != null) storageChecks.inspect(replace);
+        if (!Thread.currentThread().isInterrupted()) checks.addAll(probe.inspect(origin, prod));
         add(
                 checks,
                 "upload-content-security",
