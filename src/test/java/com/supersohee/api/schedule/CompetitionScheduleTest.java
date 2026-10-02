@@ -100,6 +100,21 @@ class CompetitionScheduleTest {
         verifyNoInteractions(stadium);
     }
 
+    @Test void newMetadataLinksOnlyAnExactlyNamedRegisteredStadium() {
+        com.supersohee.api.stadium.domain.Stadium sajik = mock(com.supersohee.api.stadium.domain.Stadium.class);
+        when(stadium.findByName("부산 사직실내체육관")).thenReturn(Optional.of(sajik));
+        when(stadium.findByName("KB스타즈")).thenReturn(Optional.empty());
+        Schedule home = service.createAdminSchedule(request("wkbl","WKBL","league","2026-2027","club","home","부산 사직실내체육관")).toBuilder().id("home").build();
+        Schedule away = service.createAdminSchedule(request("wkbl","WKBL","league","2026-2027","club","away","KB스타즈")).toBuilder().id("away").build();
+        when(repository.findById("home")).thenReturn(Optional.of(home));
+        when(repository.findById("away")).thenReturn(Optional.of(away));
+
+        assertThat(service.findDetailsById("home").orElseThrow().getStadium()).isNotNull();
+        // A team name is not a stadium name: no opponent-based inference such as 청주체육관.
+        assertThat(service.findDetailsById("away").orElseThrow().getStadium()).isNull();
+        verify(stadium, never()).findByName("청주체육관");
+    }
+
     @Test void partialGroupContradictoryHomeInvalidDatesAndFiltersRejectBeforeSave() {
         var partial = new AdminScheduleRequest("2026-2027","2026-01-02","19:00","상대",true,null,false,true,
                 "cup",null,null,null,null,null,null,null,null,null);

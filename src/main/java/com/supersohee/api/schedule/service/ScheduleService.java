@@ -55,12 +55,17 @@ public class ScheduleService {
                                 .orElse(null);
                     }
 
-                    // 2. stadiumId가 없으면 location 기반으로 자동 매핑
+                    // 2. 명시된 경기장 이름이 등록된 경기장과 정확히 같으면 연결 (상대팀 이름으로 추측하지 않음)
+                    if (stadium == null && schedule.getVenueName() != null && !schedule.getVenueName().isBlank()) {
+                        stadium = stadiumService.findByName(schedule.getVenueName().trim()).orElse(null);
+                    }
+
+                    // 3. 대회 정보가 없는 과거 문서만 location 기반으로 자동 매핑
                     if (stadium == null && !schedule.hasCompetitionMetadata()) {
                         stadium = findStadiumByLocation(schedule.getLocation());
                     }
 
-                    // 3. gameId가 없으면 (정규 경기/특수 경기 포함) 스케줄 정보로 자동 매칭 시도
+                    // 4. gameId가 없으면 (정규 경기/특수 경기 포함) 스케줄 정보로 자동 매칭 시도
                     String resolvedGameId = resolveGameId(schedule, stadium);
 
                     return ScheduleDetailsResponse.from(schedule, stadium, resolvedGameId);
