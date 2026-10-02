@@ -9,6 +9,7 @@ import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
+import com.supersohee.api.admin.error.AdminApiException;
 import com.supersohee.api.article.repository.ArticleRepository;
 import com.supersohee.api.article.domain.Article;
 import com.supersohee.api.article.dto.ArticlePageResponse;
@@ -63,6 +64,30 @@ public class ArticleService {
             return articleRepository.findAllByOrderByPublishedAtDesc(pageable);
         }
         return articleRepository.findBySourceOrderByPublishedAtDesc(source.trim().toLowerCase(), pageable);
+    }
+
+    // 관리자 제목 검색: 입력값은 정규식 문자가 아닌 글자 그대로 찾는다.
+    public Page<Article> searchAdminArticles(String source, String q, int page, int size) {
+        Criteria criteria = Criteria.where("title").regex(java.util.regex.Pattern.quote(q.trim()), "i");
+        if (source != null && !source.isBlank()) {
+            criteria = criteria.and("source").is(source.trim().toLowerCase());
+        }
+        Pageable pageable = PageRequest.of(page, size,
+                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "publishedAt", "id"));
+        long total = mongoOperations.count(new Query(criteria), Article.class);
+        java.util.List<Article> content = mongoOperations.find(new Query(criteria).with(pageable), Article.class);
+        return new org.springframework.data.domain.PageImpl<>(content, pageable, total);
+    }
+
+    // 관리자 삭제: 지정한 기사 1건만 지운다. 같은 URL이 다시 import되면 새 기사로 들어온다.
+    public void deleteAdminArticle(String id) {
+        if (id == null || !id.matches("[0-9a-f]{24}")) {
+            throw AdminApiException.badRequest("Article id must be a 24-character hexadecimal identifier.");
+        }
+        if (!articleRepository.existsById(id)) {
+            throw AdminApiException.notFound("Article");
+        }
+        articleRepository.deleteById(id);
     }
 
     public Article createManualArticle(AdminManualArticleRequest request) {

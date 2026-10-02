@@ -234,6 +234,40 @@ class AdminContractIntegrationTest {
     }
 
     @Test
+    void articleDeleteIsAdminOnlyAndReportsMissingArticles() throws Exception {
+        String id = "6abf8f8fb4088c8553eff9c9";
+        mockMvc.perform(delete("/api/admin/articles/" + id).header(HttpHeaders.AUTHORIZATION, adminBearer()))
+                .andExpect(status().isNoContent());
+        verify(articleService).deleteAdminArticle(id);
+
+        mockMvc.perform(delete("/api/admin/articles/" + id))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("ADMIN_AUTHENTICATION_REQUIRED"));
+        mockMvc.perform(delete("/api/admin/articles/" + id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtUtil.generateUserToken("user-1")))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ADMIN_ACCESS_DENIED"));
+        when(articleService.searchAdminArticles("other", "아는형님", 0, 20))
+                .thenReturn(new PageImpl<>(List.of(Article.builder().id(id).source("other").title("‘아는형님’ 출격").build()), PageRequest.of(0, 20), 1));
+        mockMvc.perform(get("/api/admin/articles").queryParam("source", "other").queryParam("q", "아는형님")
+                        .header(HttpHeaders.AUTHORIZATION, adminBearer()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(id));
+        mockMvc.perform(get("/api/admin/articles").queryParam("q", "가".repeat(101))
+                        .header(HttpHeaders.AUTHORIZATION, adminBearer()))
+                .andExpect(status().isBadRequest());
+
+        // The import key authenticates only POST /import, never deletion.
+        mockMvc.perform(delete("/api/admin/articles/import").header("X-Article-Import-Key", ARTICLE_IMPORT_KEY))
+                .andExpect(status().isUnauthorized());
+
+        org.mockito.Mockito.doThrow(AdminApiException.notFound("Article")).when(articleService).deleteAdminArticle("0123456789abcdef01234567");
+        mockMvc.perform(delete("/api/admin/articles/0123456789abcdef01234567").header(HttpHeaders.AUTHORIZATION, adminBearer()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ADMIN_RESOURCE_NOT_FOUND"));
+    }
+
+    @Test
     void articleImportAcceptsTwoHundredAndRejectsTwoHundredOneItems() throws Exception {
         when(articleService.importArticles(any())).thenAnswer(invocation -> {
             int count = ((com.supersohee.api.article.dto.AdminArticleImportRequest)

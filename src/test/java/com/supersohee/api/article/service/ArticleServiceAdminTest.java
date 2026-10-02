@@ -32,6 +32,52 @@ import static org.mockito.Mockito.when;
 class ArticleServiceAdminTest {
 
     @Test
+    void deleteRemovesOnlyAnExistingArticleWithAValidId() {
+        ArticleRepository repository = mock(ArticleRepository.class);
+        ArticleService service = new ArticleService(repository, mock(MongoOperations.class));
+        String id = "6abf8f8fb4088c8553eff9c9";
+        when(repository.existsById(id)).thenReturn(true);
+
+        service.deleteAdminArticle(id);
+
+        verify(repository).deleteById(id);
+    }
+
+    @Test
+    void titleSearchTreatsInputLiterallyAndAppliesSourceAndPaging() {
+        MongoOperations mongoOperations = mock(MongoOperations.class);
+        ArticleService service = new ArticleService(mock(ArticleRepository.class), mongoOperations);
+        Article hit = Article.builder().id("a").source("other").title("서장훈 만난다‥10일 ‘아는형님’ 출격").build();
+        when(mongoOperations.count(any(Query.class), eq(Article.class))).thenReturn(21L);
+        when(mongoOperations.find(any(Query.class), eq(Article.class))).thenReturn(List.of(hit));
+
+        var result = service.searchAdminArticles(" Other ", " 아는형님 (출격) ", 1, 20);
+
+        org.mockito.ArgumentCaptor<Query> query = org.mockito.ArgumentCaptor.forClass(Query.class);
+        verify(mongoOperations).find(query.capture(), eq(Article.class));
+        String filter = query.getValue().getQueryObject().toJson();
+        assertThat(filter).contains("\\\\Q아는형님 (출격)\\\\E").contains("\"source\": \"other\"");
+        assertThat(query.getValue().getSkip()).isEqualTo(20);
+        assertThat(query.getValue().getLimit()).isEqualTo(20);
+        assertThat(result.getTotalElements()).isEqualTo(21);
+        assertThat(result.getContent()).containsExactly(hit);
+    }
+
+    @Test
+    void deleteRejectsInvalidIdsAndReportsMissingArticlesWithoutDeleting() {
+        ArticleRepository repository = mock(ArticleRepository.class);
+        ArticleService service = new ArticleService(repository, mock(MongoOperations.class));
+
+        for (String invalid : new String[] {null, "", "import", "6ABF8F8FB4088C8553EFF9C9", "6abf8f8fb4088c8553eff9c"}) {
+            assertThatExceptionOfType(com.supersohee.api.admin.error.AdminApiException.class)
+                    .isThrownBy(() -> service.deleteAdminArticle(invalid));
+        }
+        assertThatExceptionOfType(com.supersohee.api.admin.error.AdminApiException.class)
+                .isThrownBy(() -> service.deleteAdminArticle("0123456789abcdef01234567"));
+        verify(repository, org.mockito.Mockito.never()).deleteById(any());
+    }
+
+    @Test
     void atomicUpsertClassifiesCreatedAndExistingByUpsertedId() {
         ArticleRepository repository = mock(ArticleRepository.class);
         MongoOperations mongoOperations = mock(MongoOperations.class);
